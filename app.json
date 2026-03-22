@@ -9,7 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +34,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ANTIGRAVITY.RUN to track your runs in the background."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
@@ -38,7 +50,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,
