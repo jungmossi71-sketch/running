@@ -65,6 +65,22 @@
     "speech_pace_fast": "您快于目标配速。请注意保持体力。",
     "speech_pace_perfect": "非常棒！您完美地保持了目标配速。",
     "speech_km_passed": "已跑过 {{km}} 公里。平均配速为 {{m}} 分 {{s}} 秒。{{feedback}}",
-    "speech_time_passed": "已用时 {{min}} 分钟。总距离：{{km}} 公里。继续保持好的状态！"
+    "speech_time_passed": "已过去{{min}}分钟。目前累计{{km}}公里。请继续保持良好的姿势。",
+    "indoor_mode_select": "选择室内跑步模式",
+    "indoor_mode_desc": "请选择适合您环境的测量方式。",
+    "indoor_mode_active": "手持跑步 (智能)",
+    "indoor_mode_active_desc": "通过传感器测量步数和距离。",
+    "indoor_mode_passive": "观看视频 (固定)",
+    "indoor_mode_passive_desc": "仅测量时间，手动输入距离。",
+    "manual_distance": "手动输入距离",
+    "lock_screen": "锁定屏幕",
+    "unlock_screen": "解锁屏幕",
+    "long_press_unlock": "长按解锁",
+    "run_music": "电台 & 音乐",
+    "radio_neon": "霓虹配速 (Synthwave)",
+    "radio_lofi": "低保真慢跑 (Chill)",
+    "radio_power": "强力冲刺 (Rock)",
+    "radio_cadence": "步频 (Step Metronome)",
+    "now_playing": "正在播放"
   }
 }

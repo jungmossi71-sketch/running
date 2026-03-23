@@ -65,6 +65,27 @@
     "speech_pace_fast": "현재 목표 페이스보다 빠릅니다. 완주를 위해 체력을 미리 안배하세요.",
     "speech_pace_perfect": "아주 좋습니다! 현재 완벽하게 목표 페이스를 유지중입니다.",
     "speech_km_passed": "{{km}} 킬로미터를 통과했습니다. 현재 평균 페이스는 {{m}}분 {{s}}초 입니다. {{feedback}}",
-    "speech_time_passed": "{{min}}분이 경과했습니다. 현재 누적 {{km}} 킬로미터 달성. 계속 훌륭한 자세를 유지하세요."
+    "speech_time_passed": "{{min}}분이 경과했습니다. 현재 누적 {{km}} 킬로미터 달성. 계속 훌륭한 자세를 유지하세요.",
+    "indoor_mode_select": "실내 러닝 모드 선택",
+    "indoor_mode_desc": "환경에 맞는 측정 방식을 선택해 주세요.",
+    "indoor_mode_active": "폰을 들고 뛰기 (스마트)",
+    "indoor_mode_active_desc": "센서를 통해 걸음 수와 거리를 측정합니다.",
+    "indoor_mode_passive": "영상 시청 (거치)",
+    "indoor_mode_passive_desc": "시간만 측정하며 거리를 직접 입력합니다.",
+    "manual_distance": "수동 거리 입력",
+    "lock_screen": "화면 잠금",
+    "unlock_screen": "잠금 해제",
+    "long_press_unlock": "길게 눌러서 해제",
+    "run_music": "라디오 & 뮤직",
+    "radio_neon": "네온 페이스 (Synthwave)",
+    "radio_lofi": "로파이 조깅 (Chill)",
+    "radio_power": "파워 스프린트 (Rock)",
+    "radio_cadence": "케이던스 (Step Metronome)",
+    "radio_classic": "클래식 런 (Classic Music)",
+    "now_playing": "지금 재생 중",
+    "delete_confirm_title": "기록 삭제",
+    "delete_confirm_msg": "이 러닝 기록을 정말 삭제하시겠습니까?",
+    "delete": "삭제",
+    "cancel": "취소"
   }
 }

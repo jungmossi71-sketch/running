@@ -65,6 +65,22 @@
     "speech_pace_fast": "आप लक्ष्य गति से तेज हैं। अपनी ऊर्जा बचाएं।",
     "speech_pace_perfect": "बहुत बढ़िया! आप लक्ष्य गति को पूरी तरह से बनाए हुए हैं।",
     "speech_km_passed": "{{km}} किलोमीटर पूरे हुए। औसत गति {{m}} मिनट और {{s}} सेकंड है। {{feedback}}",
-    "speech_time_passed": "{{min}} मिनट बीत चुके हैं। कुल दूरी: {{km}} किलोमीटर। अच्छा काम जारी रखें!"
+    "speech_time_passed": "{{min}} मिनट बीत चुके हैं। अब तक कुल दूरी {{km}} किलोमीटर है। अपनी अच्छी मुद्रा बनाए रखें।",
+    "indoor_mode_select": "इंडोर मोड चुनें",
+    "indoor_mode_desc": "अपनी दौड़ को ट्रैक करने का तरीका चुनें।",
+    "indoor_mode_active": "फोन पकड़कर दौड़ें (स्मार्ट)",
+    "indoor_mode_active_desc": "कदमों के आधार पर दूरी मापें।",
+    "indoor_mode_passive": "वीडियो देखें (मैन्युअल)",
+    "indoor_mode_passive_desc": "केवल समय ट्रैक करें। दूरी मैन्युअल रूप से डालें।",
+    "manual_distance": "मैन्युअल दूरी",
+    "lock_screen": "स्क्रीन लॉक करें",
+    "unlock_screen": "स्क्रीन अनलॉक करें",
+    "long_press_unlock": "अनलॉक करने के लिए देर तक दबाएं",
+    "run_music": "रेडियो और संगीत",
+    "radio_neon": "नियॉन पेस (Synthwave)",
+    "radio_lofi": "लोफी जॉगिंग (Chill)",
+    "radio_power": "पावर स्प्रिंट (Rock)",
+    "radio_midnight": "मिडनाइट रेडियो (City Pop)",
+    "now_playing": "अभी बज रहा है"
   }
 }

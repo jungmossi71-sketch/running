@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ScrollView, SafeAreaView, TouchableOpacity, ImageBackground } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, SafeAreaView, TouchableOpacity, ImageBackground, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,10 +9,22 @@ import Map from '../../components/Map';
 
 export default function HistoryScreen() {
   const [expandedMapId, setExpandedMapId] = useState<string | null>(null);
+  const [fullScreenRoute, setFullScreenRoute] = useState<any[] | null>(null);
   const { t } = useTranslation();
   const { customBackgroundUri, appTheme, colors } = useThemeContext();
   const { THEME_BACKGROUNDS } = require('../../context/ThemeContext');
-  const { history } = useHistoryContext();
+  const { history, deleteRun } = useHistoryContext();
+
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      t('delete_confirm_title'),
+      t('delete_confirm_msg'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('delete'), style: 'destructive', onPress: () => deleteRun(id) }
+      ]
+    );
+  };
 
   return (
     <ImageBackground 
@@ -44,7 +56,12 @@ export default function HistoryScreen() {
                   <Ionicons name="calendar-outline" size={14} color={colors.sub} />
                   <Text style={[styles.dateText, { color: colors.sub }]}>{run.date}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#555" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity onPress={() => handleDelete(run.id)}>
+                    <Ionicons name="trash-outline" size={20} color="#FF4444" />
+                  </TouchableOpacity>
+                  <Ionicons name="chevron-forward" size={20} color="#555" />
+                </View>
               </View>
 
               <Text style={styles.runTitle}>{run.title}</Text>
@@ -76,15 +93,56 @@ export default function HistoryScreen() {
               </TouchableOpacity>
               
               {expandedMapId === run.id && run.route && run.route.length > 0 && (
-                <View style={{ height: 220, marginTop: 16, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: `${colors.main}50` }}>
+                <TouchableOpacity 
+                  activeOpacity={0.8}
+                  style={{ height: 220, marginTop: 16, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: `${colors.main}50` }}
+                  onPress={() => setFullScreenRoute(run.route)}
+                >
                   <Map route={run.route} lineColor={colors.main} />
-                </View>
+                  <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>{t('click_fullscreen') || '클릭하여 크게보기 🔍'}</Text>
+                  </View>
+                </TouchableOpacity>
               )}
             </TouchableOpacity>
           ))
         )}
 
       </ScrollView>
+
+      {/* Full Screen Map Modal */}
+      <Modal visible={!!fullScreenRoute} animationType="slide" transparent={false}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+            <View style={{ flex: 1 }}>
+              {fullScreenRoute && <Map route={fullScreenRoute} lineColor={colors.main} />}
+              
+              {/* Overlay Close Button */}
+              <TouchableOpacity 
+                style={{ 
+                  position: 'absolute', 
+                  top: 50, 
+                  right: 20, 
+                  width: 44, 
+                  height: 44, 
+                  borderRadius: 22, 
+                  backgroundColor: 'rgba(0,0,0,0.8)', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.2)'
+                }}
+                onPress={() => setFullScreenRoute(null)}
+              >
+                <Ionicons name="close" size={28} color="#FFF" />
+              </TouchableOpacity>
+
+              <View style={{ position: 'absolute', bottom: 40, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 }}>
+                <Text style={{ color: '#FFF', fontWeight: 'bold' }}>GPS Route Summary</Text>
+              </View>
+            </View>
+          </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
     </ImageBackground>
   );

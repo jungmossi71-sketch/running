@@ -65,6 +65,27 @@
     "speech_pace_fast": "You are faster than target pace. Conserve your energy.",
     "speech_pace_perfect": "Excellent! You are maintaining the target pace perfectly.",
     "speech_km_passed": "Passed {{km}} kilometers. Average pace is {{m}} minutes and {{s}} seconds. {{feedback}}",
-    "speech_time_passed": "{{min}} minutes elapsed. Total distance: {{km}} kilometers. Keep up the good work!"
+    "speech_time_passed": "{{min}} minutes elapsed. Total distance: {{km}} kilometers. Keep up the good work!",
+    "indoor_mode_select": "Select Indoor Mode",
+    "indoor_mode_desc": "Choose how you want to track your run.",
+    "indoor_mode_active": "Hold & Run (Smart)",
+    "indoor_mode_active_desc": "Measure distance based on your steps.",
+    "indoor_mode_passive": "Watch Video (Manual)",
+    "indoor_mode_passive_desc": "Track time only. Input distance manually.",
+    "manual_distance": "MANUAL DISTANCE",
+    "lock_screen": "Lock Screen",
+    "unlock_screen": "Unlock Screen",
+    "long_press_unlock": "Long press to unlock",
+    "run_music": "Radio & Music",
+    "radio_neon": "Neon Pace (Synthwave)",
+    "radio_lofi": "Lofi Jogging (Chill)",
+    "radio_power": "Power Sprint (Rock)",
+    "radio_cadence": "Cadence (Step Metronome)",
+    "radio_classic": "Classic Run (Classical Music)",
+    "now_playing": "Now Playing",
+    "delete_confirm_title": "Delete Record",
+    "delete_confirm_msg": "Are you sure you want to delete this run record?",
+    "delete": "Delete",
+    "cancel": "Cancel"
   }
 }

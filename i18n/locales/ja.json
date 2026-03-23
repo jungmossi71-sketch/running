@@ -65,6 +65,22 @@
     "speech_pace_fast": "目標ペースより速いです。体力を温存してください。",
     "speech_pace_perfect": "素晴らしい！目標ペースを完璧に維持しています。",
     "speech_km_passed": "{{km}} キロメートルを通過しました。平均ペースは {{m}}分 {{s}}秒です。{{feedback}}",
-    "speech_time_passed": "{{min}} 分経過しました。累計距離は {{km}} キロメートルです。この調子で頑張りましょう！"
+    "speech_time_passed": "{{min}}分が経過しました。現在の累計は{{km}}キロメートルです。そのまま素晴らしい姿勢を維持してください。",
+    "indoor_mode_select": "室内ランニングモード選択",
+    "indoor_mode_desc": "環境に合わせた測定方式を選択してください。",
+    "indoor_mode_active": "スマホを持って走る (スマート)",
+    "indoor_mode_active_desc": "センサーを通じて歩数と距離を測定します。",
+    "indoor_mode_passive": "動画視聴 (据え置き)",
+    "indoor_mode_passive_desc": "時間のみ測定し、距離を直接入力します。",
+    "manual_distance": "手動距離入力",
+    "lock_screen": "画面ロック",
+    "unlock_screen": "ロック解除",
+    "long_press_unlock": "長押しで解除",
+    "run_music": "ラジオ & ミュージック",
+    "radio_neon": "ネオン・ペース (Synthwave)",
+    "radio_lofi": "ローファイ・ジョギング (Chill)",
+    "radio_power": "パワースプリント (Rock)",
+    "radio_cadence": "ケイデンス (Step Metronome)",
+    "now_playing": "今再生中"
   }
 }

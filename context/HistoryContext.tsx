@@ -17,6 +17,7 @@ interface HistoryContextType {
   mileageBalance: number;
   addRun: (run: Omit<RunRecord, 'id'>) => Promise<void>;
   clearHistory: () => Promise<void>;
+  deleteRun: (id: string) => Promise<void>;
   updateWeeklyGoal: (goal: number) => Promise<void>;
   spendMileage: (amount: number) => Promise<boolean>;
 }
@@ -27,6 +28,7 @@ const HistoryContext = createContext<HistoryContextType>({
   mileageBalance: 50.0, // 초기 장려금 50M 지급
   addRun: async () => {},
   clearHistory: async () => {},
+  deleteRun: async () => {},
   updateWeeklyGoal: async () => {},
   spendMileage: async () => false,
 });
@@ -81,8 +83,14 @@ export const HistoryProvider = ({ children }: { children: React.ReactNode }) => 
     await AsyncStorage.removeItem('run_history');
   };
 
+  const deleteRun = async (id: string) => {
+    const newHistory = history.filter(run => run.id !== id);
+    setHistory(newHistory);
+    await AsyncStorage.setItem('run_history', JSON.stringify(newHistory));
+  };
+
   return (
-    <HistoryContext.Provider value={{ history, weeklyGoal, mileageBalance, addRun, clearHistory, updateWeeklyGoal, spendMileage }}>
+    <HistoryContext.Provider value={{ history, weeklyGoal, mileageBalance, addRun, clearHistory, deleteRun, updateWeeklyGoal, spendMileage }}>
       {children}
     </HistoryContext.Provider>
   );

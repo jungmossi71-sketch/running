@@ -65,6 +65,22 @@
     "speech_pace_fast": "Vas más rápido que el ritmo objetivo. Conserva tu energía.",
     "speech_pace_perfect": "¡Excelente! Estás manteniendo el ritmo objetivo perfectamente.",
     "speech_km_passed": "Has pasado {{km}} kilómetros. El ritmo medio es de {{m}} minutos y {{s}} segundos. {{feedback}}",
-    "speech_time_passed": "Han pasado {{min}} minutos. Distancia total: {{km}} kilómetros. ¡Sigue así!"
+    "speech_time_passed": "Han pasado {{min}} minutos. Distancia total {{km}} km. Sigue así con esa gran postura.",
+    "indoor_mode_select": "Seleccionar modo interior",
+    "indoor_mode_desc": "Elige cómo quieres registrar tu carrera.",
+    "indoor_mode_active": "Correr con móvil (Smarter)",
+    "indoor_mode_active_desc": "Mide la distancia según tus pasos.",
+    "indoor_mode_passive": "Ver vídeo (Manual)",
+    "indoor_mode_passive_desc": "Mide solo tiempo. Ingresa la distancia manual.",
+    "manual_distance": "DISTANCIA MANUAL",
+    "lock_screen": "Bloquear pantalla",
+    "unlock_screen": "Desbloquear pantalla",
+    "long_press_unlock": "Mantén presionado para desbloquear",
+    "run_music": "Radio y música",
+    "radio_neon": "Ritmo Neón (Synthwave)",
+    "radio_lofi": "Jogging Lofi (Chill)",
+    "radio_power": "Sprint de potencia (Rock)",
+    "radio_midnight": "Radio de medianoche (City Pop)",
+    "now_playing": "Reproduciendo ahora"
   }
 }

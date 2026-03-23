@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Dimensions, ImageBackground, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Dimensions, ImageBackground, ScrollView, Modal, TextInput, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
@@ -8,25 +8,20 @@ import { useHistoryContext } from '../context/HistoryContext';
 import { useVoiceCoachContext } from '../context/VoiceCoachContext';
 import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
+import * as Haptics from 'expo-haptics';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid, ResizeMode, Video } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 // @ts-ignore
 import Map from '../components/Map';
+import { useKeepAwake } from 'expo-keep-awake';
+
+import { activeRunStore } from '../context/ActiveRunStore';
+
+import { Pedometer } from 'expo-sensors';
 
 const { width, height } = Dimensions.get('window');
 
-function getTTSLanguage(lang: string) {
-  switch(lang) {
-    case 'en': return 'en-US';
-    case 'zh': return 'zh-CN';
-    case 'ja': return 'ja-JP';
-    case 'es': return 'es-ES';
-    case 'hi': return 'hi-IN';
-    case 'ko':
-    default: return 'ko-KR';
-  }
-}
-
+// Helper for distance calculation (shared)
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -39,10 +34,40 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * c;
 }
 
+const RADIO_STREAMS: Record<string, string> = {
+  neon: 'https://nightride.fm/stream/nightride.mp3', 
+  lofi: 'https://nightride.fm/stream/synthwave.mp3', 
+  power: 'https://nightride.fm/stream/darksynth.mp3',
+  classic: 'https://livestreaming-node-3.srg-ssr.ch/srgssr/rsc_fr/mp3/128',
+  cadence: 'https://assets.mixkit.co/sfx/preview/mixkit-simple-countdown-beep-sound-2863.mp3'
+};
+
 export default function ActiveRunScreen() {
   const router = useRouter();
   const { mode } = useLocalSearchParams();
   const isIndoor = mode === 'indoor';
+  useKeepAwake();
+
+  useEffect(() => {
+    // 오디오 모드 초기화 (무음 모드 재생 및 백그라운드 유지)
+    const initAudio = async () => {
+      try {
+        await Audio.setIsEnabledAsync(true);
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: true,
+          interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (e) {
+        console.log('Audio mode init error', e);
+      }
+    };
+    initAudio();
+  }, []);
 
   const [isPaused, setIsPaused] = useState(false);
   const { t, i18n } = useTranslation();
@@ -53,95 +78,146 @@ export default function ActiveRunScreen() {
 
   const [seconds, setSeconds] = useState(0);
   const [distanceKm, setDistanceKm] = useState(0);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
   const [route, setRoute] = useState<{latitude: number, longitude: number}[]>([]);
   const [videoUri, setVideoUri] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const unlockAnim = useRef(new Animated.Value(1)).current;
   
-  const isPausedRef = useRef(isPaused);
-  const lastSpokenKm = useRef(0);
-  const lastSpokenMin = useRef(0);
+  // Media states
+  const [mediaMode, setMediaMode] = useState<'map' | 'video' | 'music'>('map');
+  const [activeChannel, setActiveChannel] = useState('cadence'); // Default to Cadence as requested
+  const visualizerAnims = useRef(Array(8).fill(0).map(() => new Animated.Value(0.2))).current;
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [audioStatus, setAudioStatus] = useState<string>('INIT');
+  const [metronomeBpm, setMetronomeBpm] = useState(170);
+  const metronomeTimer = useRef<any>(null);
+  const metronomeSoundRef = useRef<Audio.Sound | null>(null);
   
-  useEffect(() => {
-    isPausedRef.current = isPaused;
-  }, [isPaused]);
+  // Indoor-specific state
+  const [indoorSubMode, setIndoorSubMode] = useState<'active' | 'passive' | null>(null);
+  const [isSelectingMode, setIsSelectingMode] = useState(isIndoor);
+  const [manualDistanceStr, setManualDistanceStr] = useState('0.00');
 
-  // Timer logic
+  // Start the run in the global store
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    if (!isSelectingMode) {
+      activeRunStore.start(coachConfig, i18n.language, indoorSubMode);
+    }
+  }, [isSelectingMode, indoorSubMode]);
+
+  useEffect(() => {
+    return () => {
+      activeRunStore.stop();
+    };
+  }, []);
+
+  // Sync UI state with global store
+  useEffect(() => {
+    const unsubscribe = activeRunStore.subscribe(() => {
+      const state = activeRunStore.getState();
+      setDistanceKm(state.distanceKm);
+      setCurrentSpeed(state.currentSpeed);
+      if (state.indoorMode !== 'active') {
+        setRoute([...state.route]);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Accurate Timer logic using timestamps
+  useEffect(() => {
+    if (isSelectingMode) return;
+    let interval: any;
     if (!isPaused) {
-      interval = setInterval(() => setSeconds(s => s + 1), 1000);
+      interval = setInterval(() => {
+        const state = activeRunStore.getState();
+        if (state.startTime) {
+          const elapsed = Math.floor((Date.now() - state.startTime) / 1000) + state.accumulatedSeconds;
+          setSeconds(elapsed);
+        }
+      }, 500); 
     }
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, isSelectingMode]);
 
-  // GPS Tracking logic
+  // Indoor Pedometer Tracking
   useEffect(() => {
-    if (isIndoor) {
-      // 실내 러닝일 경우 GPS 측정 중단 (배터리 및 프라이버시 고려)
-      // 대신 임의의 평균 속도로 가상 거리 축적 타이머 등록 (예: 시속 8km 가정 시 초당 0.00222km)
-      let indoorInterval: NodeJS.Timeout;
-      if (!isPaused) {
-         indoorInterval = setInterval(() => {
-            setDistanceKm(d => d + 0.00222);
-         }, 1000);
-      }
-      return () => { if (indoorInterval) clearInterval(indoorInterval); };
-    }
+    if (!isIndoor || indoorSubMode !== 'active' || isPaused || isSelectingMode) return;
 
-    let sub: Location.LocationSubscription | null = null;
+    let sub: any = null;
     (async () => {
-      // 웹 환경 등 퍼미션 에러 방지 처리
+      const isAvailable = await Pedometer.isAvailableAsync();
+      if (!isAvailable) return;
+
+      let initialStepCount = 0;
+      sub = Pedometer.watchStepCount(result => {
+        if (initialStepCount === 0) {
+           initialStepCount = result.steps;
+        }
+        activeRunStore.updateSteps(result.steps - initialStepCount);
+      });
+    })();
+
+    return () => {
+      if (sub) sub.remove();
+    };
+  }, [isIndoor, indoorSubMode, isPaused, isSelectingMode]);
+
+  // GPS Tracking logic (Now only starts the background task if outdoor)
+  useEffect(() => {
+    if (isIndoor || isSelectingMode) return;
+
+    (async () => {
       const { status: fgStatus } = await Location.requestForegroundPermissionsAsync().catch(() => ({ status: 'denied' }));
       const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync().catch(() => ({ status: 'denied' }));
       
       if (fgStatus !== 'granted') return;
 
-      sub = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2000,
-          distanceInterval: 5,
-        },
-        (loc) => {
-          if (!isPausedRef.current) {
-            const newCoord = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-            setRoute(prev => {
-              if (prev.length > 0) {
-                const last = prev[prev.length - 1];
-                const d = getDistanceKm(last.latitude, last.longitude, newCoord.latitude, newCoord.longitude);
-                setDistanceKm(currDist => currDist + d);
-              }
-              return [...prev, newCoord];
-            });
-          }
+      await Location.startLocationUpdatesAsync('background-location-task', {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 2000,
+        distanceInterval: 5,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: "ANTIGRAVITY.RUN",
+          notificationBody: "Tracking your run...",
+          notificationColor: "#39FF14",
         }
-      );
-
-      if (bgStatus === 'granted') {
-        await Location.startLocationUpdatesAsync('background-location-task', {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2000,
-          distanceInterval: 5,
-          showsBackgroundLocationIndicator: true,
-          foregroundService: {
-            notificationTitle: "ANTIGRAVITY.RUN",
-            notificationBody: "Tracking your run...",
-            notificationColor: "#39FF14",
-          }
-        }).catch(e => console.warn('Background Location error:', e));
-      }
-
+      }).catch(e => console.warn('Background Location error:', e));
     })();
+
     return () => { 
-      if (sub && typeof sub.remove === 'function') {
-        try {
-          sub.remove();
-        } catch (e) {
-          // Expo Web Location bug
-        }
-      }
       Location.stopLocationUpdatesAsync('background-location-task').catch(() => {});
     };
-  }, [isIndoor, isPaused]);
+  }, [isIndoor, isSelectingMode]);
+
+  const handlePauseResume = () => {
+    if (isPaused) {
+      activeRunStore.resume();
+    } else {
+      activeRunStore.pause();
+    }
+    setIsPaused(!isPaused);
+  };
+
+  const handleStopRun = async () => {
+    const finalState = activeRunStore.getState();
+    if (finalState.distanceKm > 0.01 || seconds > 3) {
+      const today = new Date();
+      const dateStr = today.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      await addRun({
+        date: dateStr,
+        title: finalState.indoorMode ? `Indoor Run (${finalState.indoorMode})` : 'Outdoor Run',
+        distance: finalState.distanceKm.toFixed(2),
+        pace: formattedPace,
+        time: formatTime(seconds),
+        route: finalState.route,
+      });
+    }
+    activeRunStore.stop();
+    router.back();
+  };
 
   const handlePickVideo = async () => {
     try {
@@ -158,6 +234,142 @@ export default function ActiveRunScreen() {
     }
   };
 
+  const handleVideoReset = () => setVideoUri(null);
+
+  const handleUnlockPressIn = () => {
+    Animated.timing(unlockAnim, {
+      toValue: 1.5,
+      duration: 1500,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleUnlockPressOut = () => {
+    Animated.spring(unlockAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  useEffect(() => {
+    if (mediaMode !== 'music' || isPaused) return;
+
+    if (activeChannel === 'cadence') {
+      const ms = (60 / metronomeBpm) * 1000;
+      const animations = visualizerAnims.map((anim, i) => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.delay(i * 10), // Subtle wave
+            Animated.timing(anim, { toValue: 1.0, duration: 100, useNativeDriver: true }),
+            Animated.timing(anim, { toValue: 0.2, duration: ms - 110, useNativeDriver: true })
+          ])
+        );
+      });
+      animations.forEach(a => a.start());
+      return () => animations.forEach(a => a.stop());
+    } else {
+      const animations = visualizerAnims.map(anim => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.timing(anim, {
+              toValue: Math.random() * 0.8 + 0.2,
+              duration: 300 + Math.random() * 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(anim, {
+              toValue: 0.2,
+              duration: 300 + Math.random() * 200,
+              useNativeDriver: true,
+            })
+          ])
+        );
+      });
+      animations.forEach(a => a.start());
+      return () => animations.forEach(a => a.stop());
+    }
+  }, [mediaMode, isPaused, activeChannel, metronomeBpm]);
+
+  useEffect(() => {
+    if (activeChannel === 'cadence' && !isPaused && mediaMode === 'music') {
+      const ms = (60 / metronomeBpm) * 1000;
+      metronomeTimer.current = setInterval(async () => {
+        if (activeChannel === 'cadence') {
+            try {
+                // High-reliability trigger: create and play immediately
+                const { sound: clickSound } = await Audio.Sound.createAsync(
+                    { uri: RADIO_STREAMS.cadence },
+                    { shouldPlay: true, volume: 1.0 }
+                );
+                // Unload soon after playback to prevent memory leaks
+                setTimeout(() => {
+                    clickSound.unloadAsync().catch(() => {});
+                }, 800);
+            } catch (e) {
+                console.log('Cadence sound error', e);
+            }
+        }
+      }, ms);
+    } else {
+      if (metronomeTimer.current) clearInterval(metronomeTimer.current);
+    }
+    return () => { if (metronomeTimer.current) clearInterval(metronomeTimer.current); };
+  }, [activeChannel, metronomeBpm, isPaused, mediaMode]);
+
+  useEffect(() => {
+    const manageAudio = async () => {
+        // mediaMode가 music이 아니거나 일시 중지 중이거나 케이던스 모드이면 라디오 정지
+        if (mediaMode !== 'music' || isPaused || activeChannel === 'cadence') {
+            if (soundRef.current) {
+                try {
+                    await soundRef.current.pauseAsync();
+                } catch (e) { /* ignore */ }
+            }
+            if (activeChannel === 'cadence' && mediaMode === 'music') setAudioStatus('CADENCE');
+            return;
+        }
+
+        try {
+            setAudioStatus('LOADING');
+            // 기존 소리가 있다면 해제
+            if (soundRef.current) {
+                try { await soundRef.current.unloadAsync(); } catch (e) {}
+                soundRef.current = null;
+            }
+
+            console.log(`Loading stream: ${activeChannel}...`);
+            const sound = new Audio.Sound();
+            sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded) {
+                    if (status.isPlaying) setAudioStatus('PLAYING');
+                    else if (status.didJustFinish) setAudioStatus('FINISHED');
+                    else setAudioStatus('LOADED');
+                } else if (!status.isLoaded && status.error) {
+                    setAudioStatus('ERR');
+                }
+            });
+
+            await sound.loadAsync(
+                { uri: RADIO_STREAMS[activeChannel] },
+                { shouldPlay: true, isLooping: true, volume: 1.0 }
+            );
+            
+            soundRef.current = sound;
+            console.log(`Playing audio: ${activeChannel} Success!`);
+        } catch (e) {
+            setAudioStatus('FAILED');
+            console.log('Audio stream error details:', e);
+        }
+    };
+
+    manageAudio();
+
+    return () => {
+        if (soundRef.current) {
+            soundRef.current.unloadAsync().catch(() => {});
+        }
+    };
+  }, [mediaMode, activeChannel, isPaused]);
+
   const formatTime = (totalS: number) => {
     const m = Math.floor(totalS / 60);
     const s = totalS % 60;
@@ -169,103 +381,11 @@ export default function ActiveRunScreen() {
   const paceS = Math.floor((currentPace - paceM) * 60);
   const formattedPace = distanceKm > 0 ? `${paceM}'${paceS < 10 ? '0' : ''}${paceS}"` : `-'-"`;
 
-  // --- Smart Voice Coach Engine ---
-  useEffect(() => {
-    if ((!coachConfig.isPaceMakerActive && !coachConfig.speakDistanceEvent) || distanceKm === 0) return;
-
-    const currentKmFloor = Math.floor(distanceKm);
-    
-    if (currentKmFloor > lastSpokenKm.current) {
-      lastSpokenKm.current = currentKmFloor;
-      
-      let paceFeedback = '';
-      if (coachConfig.isPaceMakerActive) {
-        const targetPaceTotalSec = (coachConfig.targetTimeMinutes / coachConfig.targetDistanceKm) * 60;
-        const currentPaceTotalSec = paceM * 60 + paceS;
-        
-        if (currentPaceTotalSec > targetPaceTotalSec + 15) {
-          paceFeedback = t('speech_pace_slow');
-        } else if (currentPaceTotalSec < targetPaceTotalSec - 15) {
-          paceFeedback = t('speech_pace_fast');
-        } else {
-          paceFeedback = t('speech_pace_perfect');
-        }
-      }
-
-      const text = t('speech_km_passed', { km: currentKmFloor, m: paceM, s: paceS, feedback: paceFeedback });
-      
-      Audio.setAudioModeAsync({ 
-        playsInSilentModeIOS: true, 
-        staysActiveInBackground: true,
-        interruptionModeIOS: InterruptionModeIOS.DuckOthers,
-        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-        shouldDuckAndroid: true
-      }).then(() => {
-        Speech.speak(text, { 
-          language: getTTSLanguage(i18n.language), 
-          rate: 1.05,
-          onDone: () => {
-            Audio.setAudioModeAsync({
-              playsInSilentModeIOS: true,
-              staysActiveInBackground: true,
-              interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
-              interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-              shouldDuckAndroid: false,
-            }).catch(() => {});
-          }
-        });
-      });
-    }
-  }, [distanceKm]);
-
-  useEffect(() => {
-    if (!coachConfig.speakTimeEvent || seconds === 0) return;
-    
-    const minutes = Math.floor(seconds / 60);
-    if (minutes > 0 && minutes % 5 === 0 && minutes > lastSpokenMin.current) {
-      lastSpokenMin.current = minutes;
-      const text = t('speech_time_passed', { min: minutes, km: distanceKm.toFixed(1) });
-      
-      Audio.setAudioModeAsync({ 
-        playsInSilentModeIOS: true, 
-        staysActiveInBackground: true,
-        interruptionModeIOS: InterruptionModeIOS.DuckOthers,
-        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-        shouldDuckAndroid: true
-      }).then(() => {
-        Speech.speak(text, { 
-          language: getTTSLanguage(i18n.language), 
-          rate: 1.05,
-          onDone: () => {
-            Audio.setAudioModeAsync({
-              playsInSilentModeIOS: true,
-              staysActiveInBackground: true,
-              interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
-              interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-              shouldDuckAndroid: false,
-            }).catch(() => {});
-          }
-        });
-      });
-    }
-  }, [seconds]);
-
-  const handleStopRun = async () => {
-    // 거리가 조금이라도 있거나 시간이 흐른 경우에만 로컬 저장소에 기록
-    if (distanceKm > 0.01 || seconds > 3) {
-      const today = new Date();
-      const dateStr = today.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-      await addRun({
-        date: dateStr,
-        title: 'Free Run',
-        distance: distanceKm.toFixed(2),
-        pace: formattedPace,
-        time: formatTime(seconds),
-        route: route,
-      });
-    }
-    router.back();
-  };
+  const speedKmh = currentSpeed * 3.6;
+  const instantPace = speedKmh > 0.5 ? 60 / speedKmh : 0;
+  const iPaceM = Math.floor(instantPace);
+  const iPaceS = Math.floor((instantPace - iPaceM) * 60);
+  const formattedInstantPace = instantPace > 0 ? `${iPaceM}'${iPaceS < 10 ? '0' : ''}${iPaceS}"` : `-'-"`;
 
   return (
     <View style={styles.container}>
@@ -290,13 +410,32 @@ export default function ActiveRunScreen() {
             </TouchableOpacity>
             
             <View style={styles.mediaControls}>
-              <TouchableOpacity style={styles.mediaButton}>
-                <Ionicons name="image" size={20} color={colors.sub} />
-                <Text style={styles.mediaBtnText}>{t('run_background')}</Text>
+              <TouchableOpacity style={styles.iconButton} onPress={() => setIsLocked(true)}>
+                <Ionicons name="lock-closed" size={20} color={colors.main} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaButton} onPress={handlePickVideo}>
-                <Ionicons name="videocam" size={20} color={colors.main} />
-                <Text style={styles.mediaBtnText}>{t('run_video')}</Text>
+              
+              <TouchableOpacity 
+                style={[styles.mediaButton, mediaMode === 'map' && { backgroundColor: 'rgba(255,255,255,0.1)' }]} 
+                onPress={() => setMediaMode('map')}
+              >
+                <Ionicons name="map" size={18} color={mediaMode === 'map' ? colors.main : '#AAA'} />
+              </TouchableOpacity>
+
+              {isIndoor && (
+                <TouchableOpacity 
+                  style={[styles.mediaButton, mediaMode === 'video' && { backgroundColor: 'rgba(255,255,255,0.1)' }]} 
+                  onPress={() => setMediaMode('video')}
+                >
+                  <Ionicons name="videocam" size={18} color={mediaMode === 'video' ? colors.main : '#AAA'} />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity 
+                style={[styles.mediaButton, mediaMode === 'music' && { backgroundColor: 'rgba(255,255,255,0.1)' }]} 
+                onPress={() => setMediaMode('music')}
+              >
+                <Ionicons name="musical-notes" size={18} color={mediaMode === 'music' ? colors.main : '#AAA'} />
+                <Text style={styles.mediaBtnText}>{t('run_music')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -306,10 +445,17 @@ export default function ActiveRunScreen() {
             <View style={styles.statsContainer}>
               <Text style={[styles.timeText, { color: colors.main }]} adjustsFontSizeToFit numberOfLines={1}>{formatTime(seconds)}</Text>
               
-              <View style={styles.rowStats}>
+              {/* Distance Row (Mainly highlighted) */}
+              <View style={[styles.statBox, { marginTop: 20 }]}>
+                 <Text style={[styles.statValue, { fontSize: 48, lineHeight: 52 }]}>{distanceKm.toFixed(2)}</Text>
+                 <Text style={styles.statLabel}>{t('kilometers').toUpperCase()}</Text>
+              </View>
+
+              {/* Paces Row */}
+              <View style={[styles.rowStats, { marginTop: 30, width: '100%', justifyContent: 'space-evenly' }]}>
                 <View style={styles.statBox}>
-                  <Text style={styles.statValue}>{distanceKm.toFixed(2)}</Text>
-                  <Text style={styles.statLabel}>{t('kilometers').toUpperCase()}</Text>
+                  <Text style={styles.statValue}>{formattedInstantPace}</Text>
+                  <Text style={styles.statLabel}>CURRENT PACE</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statBox}>
@@ -318,38 +464,115 @@ export default function ActiveRunScreen() {
                 </View>
               </View>
               
-              <View style={styles.heartRateBox}>
-                <Ionicons name="heart" size={20} color="#FF1493" />
-                <Text style={styles.hrText}>-- BPM</Text>
+              {/* Bottom KM/H & Status */}
+              <View style={[styles.heartRateBox, { marginTop: 30 }]}>
+                <Ionicons name="flash" size={18} color={colors.main} />
+                <Text style={[styles.hrText, { color: colors.main }]}>{(currentSpeed * 3.6).toFixed(1)} KM/H</Text>
               </View>
+
+              {/* Manual Distance Input for Passive Mode */}
+              {indoorSubMode === 'passive' && (
+                <View style={[styles.manualInputRow, { marginTop: 20 }]}>
+                    <Text style={{ color: '#AAA', fontSize: 13, marginRight: 10 }}>{t('manual_distance')}:</Text>
+                    <TextInput
+                      style={[styles.manualTextInput, { color: colors.main, borderColor: colors.main }]}
+                      keyboardType="numeric"
+                      value={manualDistanceStr}
+                      onChangeText={(val) => {
+                        setManualDistanceStr(val);
+                        const km = parseFloat(val);
+                        if (!isNaN(km)) activeRunStore.setManualDistance(km);
+                      }}
+                    />
+                    <Text style={{ color: colors.main, fontSize: 16, fontWeight: 'bold', marginLeft: 10 }}>KM</Text>
+                </View>
+              )}
             </View>
 
-            {/* Real GPS Map or Video Interface */}
-            <View style={[styles.mapContainer, isIndoor && { height: 280, borderColor: colors.sub }]}>
-              {isIndoor ? (
-                videoUri ? (
-                  <Video
-                    source={{ uri: videoUri }}
-                    style={{ width: '100%', height: '100%', borderRadius: 24, overflow: 'hidden' }}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay={!isPaused}
-                    isLooping
-                    isMuted
-                  />
+            {/* Real GPS Map or Video or Music Dashboard */}
+            <View style={[styles.mapContainer, { height: 400, borderColor: colors.sub }]}>
+              {mediaMode === 'map' && (
+                isIndoor ? (
+                  <View style={styles.placeholderMap}>
+                    <Ionicons name="navigate-circle" size={100} color="rgba(0,184,148,0.2)" />
+                    <Text style={{ color: '#555', marginTop: 10 }}>GPS SIGNAL ACTIVE</Text>
+                  </View>
                 ) : (
-                  <TouchableOpacity 
-                    style={{ alignItems: 'center', justifyContent: 'center', flex: 1, width: '100%' }}
-                    onPress={handlePickVideo}
-                  >
-                    <Ionicons name="film-outline" size={40} color={colors.sub} style={{ marginBottom: 10 }} />
-                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: 'bold' }}>{t('upload_gallery')} 🎬</Text>
-                    <Text style={{ color: '#888', fontSize: 11, marginTop: 6, paddingHorizontal: 30, textAlign: 'center', lineHeight: 16 }}>
-                      실내 트레드밀 모드입니다. 달리는 동안 시청할 영화, 드라마, 혹은 유튜브 녹화 영상을 추가하세요. 화면 밖 배경으로 자연스럽게 어우러집니다.
-                    </Text>
-                  </TouchableOpacity>
+                  <Map route={route} lineColor={colors.main} />
                 )
-              ) : (
-                <Map route={route} lineColor={colors.main} />
+              )}
+
+              {mediaMode === 'video' && isIndoor && (
+                <View style={styles.videoPlayer}>
+                    {videoUri ? (
+                        <View style={{ flex: 1, backgroundColor: '#000', borderRadius: 24, overflow: 'hidden' }}>
+                            <Video
+                              source={{ uri: videoUri }}
+                              style={{ width: '100%', height: '100%' }}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={!isPaused}
+                              isLooping
+                              volume={1.0}
+                            />
+                            <TouchableOpacity onPress={handleVideoReset} style={{ position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 15 }}>
+                                <Ionicons name="close" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <TouchableOpacity style={styles.videoUploadArea} onPress={handlePickVideo}>
+                             <Ionicons name="cloud-upload" size={60} color={colors.main} />
+                             <Text style={{ color: colors.main, marginTop: 15, fontWeight: 'bold' }}>{t('upload_gallery')}</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+              )}
+
+              {mediaMode === 'music' && (
+                <View style={styles.musicDashboard}>
+                    {/* Visualizer */}
+                    <View style={styles.visualizerContainer}>
+                        {visualizerAnims.map((anim, i) => (
+                            <Animated.View 
+                              key={i} 
+                              style={[
+                                styles.visualizerBar, 
+                                { 
+                                  backgroundColor: activeChannel === 'neon' ? colors.main : activeChannel === 'power' ? '#E84118' : colors.sub,
+                                  transform: [{ scaleY: anim }] 
+                                }
+                              ]} 
+                            />
+                        ))}
+                    </View>
+
+                    <Text style={styles.nowPlayingLabel}>{t('now_playing')}</Text>
+                    <Text style={[styles.channelTitle, { color: colors.main }]}>{activeChannel === 'cadence' ? `${metronomeBpm} SPM` : t(`radio_${activeChannel}`)}</Text>
+                    <Text style={{ color: '#555', fontSize: 10, marginTop: -15, marginBottom: 15 }}>{activeChannel === 'cadence' ? 'CADENCE STEP' : `STATUS: ${audioStatus}`}</Text>
+
+                    {activeChannel === 'cadence' && (
+                        <View style={styles.bpmControls}>
+                            <TouchableOpacity onPress={() => setMetronomeBpm(b => Math.max(100, b - 5))} style={styles.bpmBtn}>
+                                <Ionicons name="remove" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setMetronomeBpm(b => Math.min(240, b + 5))} style={styles.bpmBtn}>
+                                <Ionicons name="add" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.channelScroll}>
+                        {['cadence', 'neon', 'lofi', 'power', 'classic'].map(ch => (
+                            <TouchableOpacity 
+                              key={ch} 
+                              style={[styles.channelCard, activeChannel === ch && { borderColor: colors.main, backgroundColor: 'rgba(255,255,255,0.1)' }]}
+                              onPress={() => setActiveChannel(ch)}
+                            >
+                                <Ionicons name={ch === 'neon' ? 'flash' : ch === 'lofi' ? 'leaf' : ch === 'power' ? 'rocket' : ch === 'classic' ? 'musical-notes' : 'footsteps'} size={24} color={activeChannel === ch ? colors.main : '#AAA'} />
+                                <Text style={[styles.channelCardText, { color: activeChannel === ch ? '#FFF' : '#AAA' }]}>{t(`radio_${ch}`).split(' (')[0]}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
               )}
             </View>
           </ScrollView>
@@ -358,7 +581,7 @@ export default function ActiveRunScreen() {
           <View style={styles.bottomControls}>
             <TouchableOpacity 
               style={[styles.playPauseBtn, isPaused && styles.playPauseBtnPaused]}
-              onPress={() => setIsPaused(!isPaused)}
+              onPress={handlePauseResume}
             >
               <Ionicons name={isPaused ? "play" : "pause"} size={36} color="#000" />
             </TouchableOpacity>
@@ -372,6 +595,75 @@ export default function ActiveRunScreen() {
 
         </SafeAreaView>
       </ImageBackground>
+
+      {/* Indoor Mode Selection Modal */}
+      <Modal visible={isSelectingMode} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+              <View style={styles.modeCard}>
+                  <Text style={styles.modeTitle}>{t('indoor_mode_select')}</Text>
+                  <Text style={styles.modeSubtitle}>{t('indoor_mode_desc')}</Text>
+                  
+                  <TouchableOpacity 
+                    style={[styles.modeOption, { borderColor: colors.main }]}
+                    onPress={() => {
+                        setIndoorSubMode('active');
+                        setIsSelectingMode(false);
+                    }}
+                  >
+                      <Ionicons name="walk" size={32} color={colors.main} />
+                      <View>
+                          <Text style={styles.optionTitle}>{t('indoor_mode_active')}</Text>
+                          <Text style={styles.optionDesc}>{t('indoor_mode_active_desc')}</Text>
+                      </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.modeOption, { borderColor: colors.sub }]}
+                    onPress={() => {
+                        setIndoorSubMode('passive');
+                        setIsSelectingMode(false);
+                        setVideoUri('https://assets.mixkit.co/videos/preview/mixkit-running-in-the-forest-441-large.mp4'); 
+                    }}
+                  >
+                      <Ionicons name="videocam" size={32} color={colors.sub} />
+                      <View>
+                          <Text style={styles.optionTitle}>{t('indoor_mode_passive')}</Text>
+                          <Text style={styles.optionDesc}>{t('indoor_mode_passive_desc')}</Text>
+                      </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+                      <Text style={styles.cancelText}>{t('cancel')}</Text>
+                  </TouchableOpacity>
+              </View>
+          </View>
+      </Modal>
+
+      {/* Screen Lock Overlay */}
+      {isLocked && (
+        <View style={styles.lockOverlay}>
+            <View style={styles.lockContent}>
+                <Ionicons name="lock-closed" size={80} color={colors.main} style={{ marginBottom: 20, opacity: 0.5 }} />
+                <Text style={styles.lockTitle}>{t('lock_screen')}</Text>
+                <Text style={styles.lockSubtitle}>{t('long_press_unlock')}</Text>
+                
+                <Animated.View style={{ transform: [{ scale: unlockAnim }] }}>
+                    <TouchableOpacity 
+                    style={[styles.unlockBtn, { borderColor: colors.main }]} 
+                    delayLongPress={1500}
+                    onPressIn={handleUnlockPressIn}
+                    onPressOut={handleUnlockPressOut}
+                    onLongPress={() => {
+                        setIsLocked(false);
+                        handleUnlockPressOut();
+                    }}
+                    >
+                        <Ionicons name="power" size={32} color={colors.main} />
+                    </TouchableOpacity>
+                </Animated.View>
+            </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -431,14 +723,33 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     marginHorizontal: 16,
-    height: 180,
+    height: 400,
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: 'rgba(5, 5, 5, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(57, 255, 20, 0.3)',
-    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  placeholderMap: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  videoPlayer: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  videoUploadArea: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mapOverlay: {
     alignItems: 'center',
@@ -544,5 +855,181 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 48, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modeCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 30,
+    padding: 30,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modeTitle: {
+    color: '#FFF',
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modeSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  modeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    gap: 16,
+    borderWidth: 1,
+  },
+  optionTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  optionDesc: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  cancelBtn: {
+    marginTop: 10,
+    padding: 15,
+    alignItems: 'center',
+  },
+  cancelText: {
+    color: '#FF3B30',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 15,
+  },
+  manualTextInput: {
+    fontSize: 24,
+    fontWeight: '900',
+    borderBottomWidth: 2,
+    width: 80,
+    textAlign: 'center',
+  },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  lockContent: {
+    alignItems: 'center',
+  },
+  lockTitle: {
+    color: '#FFF',
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  lockSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    marginBottom: 50,
+  },
+  unlockBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  musicDashboard: {
+    flex: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  visualizerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 100,
+    width: '100%',
+    marginBottom: 20,
+  },
+  visualizerBar: {
+    width: 10,
+    height: 80,
+    marginHorizontal: 3,
+    borderRadius: 5,
+  },
+  nowPlayingLabel: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
+  channelTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 25,
+    textAlign: 'center',
+  },
+  channelScroll: {
+    maxHeight: 80,
+    marginTop: 10,
+  },
+  channelCard: {
+    paddingHorizontal: 20,
+    height: 60,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  channelCardText: {
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  bpmControls: {
+    flexDirection: 'row',
+    gap: 30,
+    marginBottom: 20,
+  },
+  bpmBtn: {
+    width: 60,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   }
 });

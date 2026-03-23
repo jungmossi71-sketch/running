@@ -10,6 +10,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
+import * as Speech from 'expo-speech';
+import { activeRunStore } from '../context/ActiveRunStore';
 
 export const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -21,9 +23,25 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   }
   if (data) {
     const { locations } = data as { locations: Location.LocationObject[] };
-    // This empty listener keeps the JS engine alive during background location updates,
-    // allowing the watchPositionAsync inside run.tsx to continuously fire.
-    console.log(`Received background geo-tick (${locations.length} updates)`);
+    
+    // Update the central store (singleton)
+    activeRunStore.updateLocation(locations);
+
+    // Background Voice Coaching
+    const state = activeRunStore.getState();
+    if (state.isActive && !state.isPaused && state.config.speakDistanceEvent) {
+       const currentKm = Math.floor(state.distanceKm);
+       if (currentKm > 0 && currentKm > state.lastSpokenKm) {
+          // Note: Since we don't have easy access to i18n in this static context, 
+          // we use a simple message or we could have stored localized templates in the store.
+          const msg = state.language === 'ko' ? `${currentKm} 킬로미터를 달렸습니다.` : `You have run ${currentKm} kilometers.`;
+          Speech.speak(msg, { language: state.language === 'ko' ? 'ko-KR' : 'en-US' });
+          // The store already updates lastSpokenKm inside updateLocation, 
+          // but we can be extra sure here if we want to manage it in the task.
+       }
+    }
+
+    console.log(`Background geo-tick: ${state.distanceKm.toFixed(2)} km, ${state.route.length} points`);
   }
 });
 
