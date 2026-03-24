@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useThemeContext } from '../context/ThemeContext';
 import { useHistoryContext } from '../context/HistoryContext';
 import { useVoiceCoachContext } from '../context/VoiceCoachContext';
+import { useBuilderContext } from '../context/BuilderContext';
 import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
@@ -44,7 +45,7 @@ const RADIO_STREAMS: Record<string, string> = {
 
 export default function ActiveRunScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams();
+  const { mode, source } = useLocalSearchParams<{ mode: 'outdoor' | 'indoor', source?: string }>();
   const isIndoor = mode === 'indoor';
   useKeepAwake();
 
@@ -75,6 +76,7 @@ export default function ActiveRunScreen() {
   const { THEME_BACKGROUNDS } = require('../context/ThemeContext');
   const { addRun } = useHistoryContext();
   const { config: coachConfig } = useVoiceCoachContext();
+  const { currentRoutine, currentRoutineName } = useBuilderContext();
 
   const [seconds, setSeconds] = useState(0);
   const [distanceKm, setDistanceKm] = useState(0);
@@ -90,6 +92,7 @@ export default function ActiveRunScreen() {
   const visualizerAnims = useRef(Array(8).fill(0).map(() => new Animated.Value(0.2))).current;
   const soundRef = useRef<Audio.Sound | null>(null);
   const [audioStatus, setAudioStatus] = useState<string>('INIT');
+  const [metronomeStatus, setMetronomeStatus] = useState<string>('INIT');
   const [metronomeBpm, setMetronomeBpm] = useState(170);
   const metronomeTimer = useRef<any>(null);
   const metronomeSoundRef = useRef<Audio.Sound | null>(null);
@@ -102,9 +105,34 @@ export default function ActiveRunScreen() {
   // Start the run in the global store
   useEffect(() => {
     if (!isSelectingMode) {
-      activeRunStore.start(coachConfig, i18n.language, indoorSubMode);
+      const startRun = async () => {
+        // 이미 실행 중이면 중복 실행 방지
+        const currentState = activeRunStore.getState();
+        if (currentState.isActive) return;
+
+        // 필요한 모든 번역 키를 명시적으로 추출 (fallback 방지)
+        const keys = [
+          'builder_start_routine', 'builder_next_segment', 'builder_routine_finished',
+          'builder_segment_alert', 'builder_routine_ending',
+          'speech_start_summary', 'builder_first_segment_hint',
+          'hint_warmup', 'hint_steady', 'hint_interval', 'hint_recovery', 'hint_cooldown',
+          'segment_type_warmup', 'segment_type_steady', 'segment_type_interval', 'segment_type_recovery', 'segment_type_cooldown',
+          'unit_min', 'unit_km',
+          'speech_km_passed', 'speech_time_passed', 'speech_pace_slow', 'speech_pace_fast', 'speech_pace_perfect'
+        ];
+        const translationsObject: Record<string, string> = {};
+        keys.forEach(k => {
+          translationsObject[k] = t(k);
+        });
+
+        const routineToStart = source === 'builder' ? currentRoutine : [];
+        const routineName = source === 'builder' ? currentRoutineName : '';
+        
+        activeRunStore.start(coachConfig, i18n.language, translationsObject, indoorSubMode, routineToStart, routineName);
+      };
+      startRun();
     }
-  }, [isSelectingMode, indoorSubMode]);
+  }, [isSelectingMode, indoorSubMode, source, currentRoutine, currentRoutineName]);
 
   useEffect(() => {
     return () => {
@@ -113,9 +141,11 @@ export default function ActiveRunScreen() {
   }, []);
 
   // Sync UI state with global store
+  const [runState, setRunState] = useState(activeRunStore.getState());
   useEffect(() => {
     const unsubscribe = activeRunStore.subscribe(() => {
       const state = activeRunStore.getState();
+      setRunState(state); // Update local state with global store state
       setDistanceKm(state.distanceKm);
       setCurrentSpeed(state.currentSpeed);
       if (state.indoorMode !== 'active') {
@@ -289,23 +319,49 @@ export default function ActiveRunScreen() {
     }
   }, [mediaMode, isPaused, activeChannel, metronomeBpm]);
 
+  // Pre-load and manage metronome sound
+  useEffect(() => {
+    let soundObj: Audio.Sound | null = null;
+    const loadMetronome = async () => {
+        if (activeChannel === 'cadence' && mediaMode === 'music') {
+            try {
+                setMetronomeStatus('LOADING...');
+                const { sound } = await Audio.Sound.createAsync(
+                    require('../assets/sounds/tick.mp3'),
+                    { volume: 1.0, shouldPlay: false }
+                );
+                metronomeSoundRef.current = sound;
+                soundObj = sound;
+                setMetronomeStatus('READY');
+            } catch (e: any) {
+                console.log('Metronome load error', e);
+                setMetronomeStatus(`ERR: ${e?.message || 'Unknown'}`);
+            }
+        } else {
+            setMetronomeStatus('IDLE');
+        }
+    };
+    loadMetronome();
+    return () => {
+        if (soundObj) {
+            soundObj.unloadAsync().catch(() => {});
+            metronomeSoundRef.current = null;
+        }
+    };
+  }, [activeChannel, mediaMode]);
+
   useEffect(() => {
     if (activeChannel === 'cadence' && !isPaused && mediaMode === 'music') {
       const ms = (60 / metronomeBpm) * 1000;
       metronomeTimer.current = setInterval(async () => {
-        if (activeChannel === 'cadence') {
+        if (metronomeSoundRef.current) {
             try {
-                // High-reliability trigger: create and play immediately
-                const { sound: clickSound } = await Audio.Sound.createAsync(
-                    { uri: RADIO_STREAMS.cadence },
-                    { shouldPlay: true, volume: 1.0 }
-                );
-                // Unload soon after playback to prevent memory leaks
-                setTimeout(() => {
-                    clickSound.unloadAsync().catch(() => {});
-                }, 800);
+                // More robust playback for short ticks
+                await metronomeSoundRef.current.setPositionAsync(0);
+                await metronomeSoundRef.current.playAsync();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             } catch (e) {
-                console.log('Cadence sound error', e);
+                console.log('Metronome play error', e);
             }
         }
       }, ms);
@@ -387,6 +443,8 @@ export default function ActiveRunScreen() {
   const iPaceS = Math.floor((instantPace - iPaceM) * 60);
   const formattedInstantPace = instantPace > 0 ? `${iPaceM}'${iPaceS < 10 ? '0' : ''}${iPaceS}"` : `-'-"`;
 
+  const formattedTime = formatTime(seconds);
+
   return (
     <View style={styles.container}>
       {/* Background Media Placeholder (In real app: expo-av Video or local Image) */}
@@ -443,7 +501,17 @@ export default function ActiveRunScreen() {
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Center Stats (Glassmorphism Overlay) */}
             <View style={styles.statsContainer}>
-              <Text style={[styles.timeText, { color: colors.main }]} adjustsFontSizeToFit numberOfLines={1}>{formatTime(seconds)}</Text>
+            {runState.currentSegmentIndex !== -1 && runState.routine[runState.currentSegmentIndex] && (
+              <View style={{ alignItems: 'center', marginBottom: 10 }}>
+                {runState.routineName ? <Text style={{ color: colors.main, fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>{runState.routineName.toUpperCase()}</Text> : null}
+                <View style={[styles.segmentLabel, { backgroundColor: colors.main }]}>
+                  <Text style={styles.segmentText}>
+                    {runState.routine[runState.currentSegmentIndex].type.toUpperCase()} ({runState.currentSegmentIndex + 1}/{runState.routine.length})
+                  </Text>
+                </View>
+              </View>
+            )}
+              <Text style={[styles.timeText, { color: colors.main }]} adjustsFontSizeToFit numberOfLines={1}>{formattedTime}</Text>
               
               {/* Distance Row (Mainly highlighted) */}
               <View style={[styles.statBox, { marginTop: 20 }]}>
@@ -547,7 +615,9 @@ export default function ActiveRunScreen() {
 
                     <Text style={styles.nowPlayingLabel}>{t('now_playing')}</Text>
                     <Text style={[styles.channelTitle, { color: colors.main }]}>{activeChannel === 'cadence' ? `${metronomeBpm} SPM` : t(`radio_${activeChannel}`)}</Text>
-                    <Text style={{ color: '#555', fontSize: 10, marginTop: -15, marginBottom: 15 }}>{activeChannel === 'cadence' ? 'CADENCE STEP' : `STATUS: ${audioStatus}`}</Text>
+                    <Text style={{ color: '#555', fontSize: 10, marginTop: -15, marginBottom: 15 }}>
+                        {activeChannel === 'cadence' ? `METRONOME STATUS: ${metronomeStatus}` : `STATUS: ${audioStatus}`}
+                    </Text>
 
                     {activeChannel === 'cadence' && (
                         <View style={styles.bpmControls}>
@@ -950,6 +1020,17 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
     marginBottom: 50,
+  },
+  segmentLabel: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  segmentText: {
+    color: '#000',
+    fontWeight: '900',
+    fontSize: 14,
   },
   unlockBtn: {
     width: 100,

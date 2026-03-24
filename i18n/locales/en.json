@@ -86,6 +86,25 @@
     "delete_confirm_title": "Delete Record",
     "delete_confirm_msg": "Are you sure you want to delete this run record?",
     "delete": "Delete",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "builder_start_routine": "Welcome! Today's program is {{name}}. I am your pace runner, let's complete this together!",
+    "builder_next_segment": "Segment finished. Great effort! Next up is {{type}} for {{value}}{{unit}}. {{hint}}",
+    "builder_routine_finished": "Awesome! You have successfully completed all segments of today's program. Now, finish your remaining distance at a comfortable, free pace. Great job!",
+    "speech_start_summary": "Starting your run with target distance {{km}}km and target pace {{m}}m {{s}}s. I'll be right here guiding you until the end. Let's go!",
+    "builder_first_segment_hint": "Our first segment is {{type}} for {{value}}{{unit}}. {{hint}}",
+    "hint_warmup": "Start with a light jog to warm up your muscles and prevent injury.",
+    "hint_steady": "Keep a steady breath and maintain this pace consistently.",
+    "hint_interval": "Pace up now! Focus and push yourself until you're slightly out of breath.",
+    "hint_recovery": "Slow down and recover your breath. This is the stage to recharge for the next segment.",
+    "hint_cooldown": "Almost done! Let's cool down with a very light pace to wrap up today's session.",
+    "builder_segment_alert": "In a few moments, the {{type}} segment will begin. It will last for {{value}} {{unit}}. {{hint}}",
+    "builder_routine_ending": "The formal training program is about to end. Amazing work today!",
+    "segment_type_warmup": "Warmup",
+    "segment_type_steady": "Steady",
+    "segment_type_interval": "Interval",
+    "segment_type_recovery": "Recovery",
+    "segment_type_cooldown": "Cooldown",
+    "unit_min": "minutes",
+    "unit_km": "kilometers"
   }
 }

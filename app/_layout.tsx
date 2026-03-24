@@ -5,6 +5,7 @@ import '../i18n';
 import { ThemeProvider } from '../context/ThemeContext';
 import { HistoryProvider } from '../context/HistoryContext';
 import { VoiceCoachProvider } from '../context/VoiceCoachContext';
+import { BuilderProvider } from '../context/BuilderContext';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -25,22 +26,10 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     const { locations } = data as { locations: Location.LocationObject[] };
     
     // Update the central store (singleton)
+    // This will internally trigger checkVoiceCoach() which handles localized TTS
     activeRunStore.updateLocation(locations);
 
-    // Background Voice Coaching
     const state = activeRunStore.getState();
-    if (state.isActive && !state.isPaused && state.config.speakDistanceEvent) {
-       const currentKm = Math.floor(state.distanceKm);
-       if (currentKm > 0 && currentKm > state.lastSpokenKm) {
-          // Note: Since we don't have easy access to i18n in this static context, 
-          // we use a simple message or we could have stored localized templates in the store.
-          const msg = state.language === 'ko' ? `${currentKm} 킬로미터를 달렸습니다.` : `You have run ${currentKm} kilometers.`;
-          Speech.speak(msg, { language: state.language === 'ko' ? 'ko-KR' : 'en-US' });
-          // The store already updates lastSpokenKm inside updateLocation, 
-          // but we can be extra sure here if we want to manage it in the task.
-       }
-    }
-
     console.log(`Background geo-tick: ${state.distanceKm.toFixed(2)} km, ${state.route.length} points`);
   }
 });
@@ -56,15 +45,17 @@ export default function RootLayout() {
     <ThemeProvider>
       <VoiceCoachProvider>
         <HistoryProvider>
-          <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="theme" options={{ headerShown: false }} />
-              <Stack.Screen name="run" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="auto" />
-          </NavigationThemeProvider>
+          <BuilderProvider>
+            <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="theme" options={{ headerShown: false }} />
+                <Stack.Screen name="run" options={{ headerShown: false }} />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <StatusBar style="auto" />
+            </NavigationThemeProvider>
+          </BuilderProvider>
         </HistoryProvider>
       </VoiceCoachProvider>
     </ThemeProvider>

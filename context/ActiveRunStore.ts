@@ -46,6 +46,13 @@ export interface RunState {
     speakTimeEvent: boolean;
   };
   language: string;
+  // Routine Builder Fields
+  routine: any[];
+  routineName: string;
+  currentSegmentIndex: number;
+  lastSpokenAlertIndex: number;
+  segmentTimeStart: number;
+  segmentDistStart: number;
 }
 
 class ActiveRunStore {
@@ -69,15 +76,26 @@ class ActiveRunStore {
       speakTimeEvent: false,
     },
     language: 'ko',
+    routine: [],
+    routineName: '',
+    currentSegmentIndex: -1,
+    lastSpokenAlertIndex: -1,
+    segmentTimeStart: 0,
+    segmentDistStart: 0,
   };
 
+  private translations: Record<string, string> = {};
+
   private listeners: (() => void)[] = [];
+
+  private speechQueue: Promise<void> = Promise.resolve();
 
   getState() {
     return this.state;
   }
 
-  start(config: any, language: string, indoorMode: 'active' | 'passive' | null = null) {
+  start(config: any, language: string, translations: Record<string, string>, indoorMode: 'active' | 'passive' | null = null, routine: any[] = [], routineName: string = '') {
+    this.translations = translations;
     this.state = {
       ...this.state,
       isActive: true,
@@ -92,8 +110,72 @@ class ActiveRunStore {
       indoorMode,
       config,
       language,
+      routine,
+      routineName: routineName || (routine.length > 0 ? '사용자 지정 루틴' : ''),
+      currentSegmentIndex: routine.length > 0 ? 0 : -1,
+      lastSpokenAlertIndex: -1,
+      segmentTimeStart: 0,
+      segmentDistStart: 0,
     };
     this.notify();
+
+    // Reset queue and initial voice guide
+    this.speechQueue = Promise.resolve();
+    setTimeout(() => this.speakInitialSummary(), 500);
+  }
+
+  private async speakSafe(msg: string, lang: string) {
+    this.speechQueue = this.speechQueue.then(() => {
+      return new Promise<void>((resolve) => {
+        Speech.speak(msg, {
+          language: lang,
+          onDone: () => resolve(),
+          onError: (e) => {
+            console.log('Speech error:', e);
+            resolve();
+          },
+        });
+        // 10sec safety timeout to prevent deadlocks
+        setTimeout(resolve, 10000); 
+      });
+    });
+    return this.speechQueue;
+  }
+
+  private async speakInitialSummary() {
+    const { config, language, routine, routineName } = this.state;
+    const ttsLang = getTTSLanguage(language);
+
+    if (routine.length > 0) {
+      // Routine guide
+      let startMsg = this.translations['builder_start_routine'] || 'Starting routine {{name}}.';
+      startMsg = startMsg.replace('{{name}}', routineName);
+      await this.speakSafe(startMsg, ttsLang);
+
+      const first = routine[0];
+      let firstHint = this.translations['builder_first_segment_hint'] || 'First is {{type}} for {{value}}{{unit}}.';
+      const hintMsg = this.translations[`hint_${first.type}`] || '';
+      const typeName = this.translations[`segment_type_${first.type}`] || first.type;
+      const unitName = this.translations[first.targetType === 'time' ? 'unit_min' : 'unit_km'] || (first.targetType === 'time' ? 'min' : 'km');
+      
+      firstHint = firstHint.replace('{{type}}', typeName)
+                          .replace('{{value}}', first.value.toString())
+                          .replace('{{unit}}', unitName)
+                          .replace('{{hint}}', hintMsg);
+      
+      await this.speakSafe(firstHint, ttsLang);
+    } else if (config.isPaceMakerActive) {
+      // Pace Maker guide
+      const targetPaceTotalSec = (config.targetTimeMinutes / config.targetDistanceKm) * 60;
+      const paceM = Math.floor(targetPaceTotalSec / 60);
+      const paceS = Math.floor(targetPaceTotalSec % 60);
+      
+      let msg = this.translations['speech_start_summary'] || 'Starting run.';
+      msg = msg.replace('{{km}}', config.targetDistanceKm.toString())
+               .replace('{{m}}', paceM.toString())
+               .replace('{{s}}', paceS.toString());
+      await this.speakSafe(msg, ttsLang);
+    }
   }
 
   pause() {
@@ -123,6 +205,7 @@ class ActiveRunStore {
     // Calculate distance based on steps * stride
     const d = (steps * this.state.strideLengthM) / 1000;
     this.state.distanceKm = d;
+    this.checkSegmentTransition();
     this.checkVoiceCoach();
     this.notify();
   }
@@ -147,6 +230,7 @@ class ActiveRunStore {
       }
       this.state.route.push(newCoord);
       
+      this.checkSegmentTransition();
       this.checkVoiceCoach();
     }
     this.notify();
@@ -163,35 +247,125 @@ class ActiveRunStore {
     if (config.speakDistanceEvent && currentKmFloor > lastSpokenKm) {
         this.state.lastSpokenKm = currentKmFloor;
         
-        let feedback = '';
+        let feedbackKey = 'speech_pace_perfect';
         if (config.isPaceMakerActive) {
             const targetPaceTotalSec = (config.targetTimeMinutes / config.targetDistanceKm) * 60;
             const avgPaceTotalSec = distanceKm > 0 ? seconds / distanceKm : 0;
             
             if (avgPaceTotalSec > targetPaceTotalSec + 15) {
-                feedback = language === 'ko' ? '페이스가 조금 느립니다. 힘내세요!' : 'Pace is a bit slow. Keep it up!';
+                feedbackKey = 'speech_pace_slow';
             } else if (avgPaceTotalSec < targetPaceTotalSec - 15) {
-                feedback = language === 'ko' ? '페이스가 아주 좋습니다! 너무 무리하지 마세요.' : 'Great pace! Don\'t overdo it.';
-            } else {
-                feedback = language === 'ko' ? '목표 페이스대로 아주 잘 달리고 있습니다.' : 'You are running perfectly at your target pace.';
+                feedbackKey = 'speech_pace_fast';
             }
         }
 
-        const msg = language === 'ko' 
-            ? `${currentKmFloor} 킬로미터를 달렸습니다. ${feedback}`
-            : `You have run ${currentKmFloor} kilometers. ${feedback}`;
+        const feedback = this.translations[feedbackKey] || '';
+        const avgPaceTotalSec = distanceKm > 0 ? seconds / distanceKm : 0;
+        const paceM = Math.floor(avgPaceTotalSec / 60);
+        const paceS = Math.floor(avgPaceTotalSec % 60);
+
+        let msg = this.translations['speech_km_passed'] || '{{km}} km passed. {{feedback}}';
+        msg = msg.replace('{{km}}', currentKmFloor.toString())
+                 .replace('{{m}}', paceM.toString())
+                 .replace('{{s}}', paceS.toString())
+                 .replace('{{feedback}}', feedback);
             
-        Speech.speak(msg, { language: getTTSLanguage(language) });
+        const ttsLang = getTTSLanguage(language);
+        this.speakSafe(msg, ttsLang);
     }
 
     // 2. Time-based triggers (Every 5 min)
     const currentMin = Math.floor(seconds / 60);
     if (config.speakTimeEvent && currentMin > 0 && currentMin % 5 === 0 && currentMin > lastSpokenMin) {
         this.state.lastSpokenMin = currentMin;
-        const msg = language === 'ko'
-            ? `${currentMin}분 경과했습니다. 현재 거리는 ${distanceKm.toFixed(1)} 킬로미터입니다.`
-            : `${currentMin} minutes passed. Current distance is ${distanceKm.toFixed(1)} kilometers.`;
-        Speech.speak(msg, { language: getTTSLanguage(language) });
+        
+        let msg = this.translations['speech_time_passed'] || '{{min}} minutes passed. {{km}} km total.';
+        msg = msg.replace('{{min}}', currentMin.toString())
+                 .replace('{{km}}', distanceKm.toFixed(1));
+                 
+        const ttsLang = getTTSLanguage(language);
+        this.speakSafe(msg, ttsLang);
+    }
+  }
+
+  private checkSegmentTransition() {
+    const { routine, currentSegmentIndex, lastSpokenAlertIndex, distanceKm, startTime, accumulatedSeconds, language } = this.state;
+    if (currentSegmentIndex === -1 || routine.length === 0) return;
+
+    const segment = routine[currentSegmentIndex];
+    const totalSeconds = startTime ? Math.floor((Date.now() - startTime) / 1000) + accumulatedSeconds : accumulatedSeconds;
+    const segmentTimeElapsed = totalSeconds - this.state.segmentTimeStart;
+    const segmentDistElapsed = distanceKm - this.state.segmentDistStart;
+
+    const ttsLang = getTTSLanguage(language);
+
+    // 1. Pre-transition Alert (10s or 100m before end)
+    if (lastSpokenAlertIndex !== currentSegmentIndex) {
+      let isPreAlert = false;
+      if (segment.targetType === 'time') {
+        const remainingS = (segment.value * 60) - segmentTimeElapsed;
+        if (remainingS <= 10 && remainingS > 3) isPreAlert = true;
+      } else {
+        const remainingKm = segment.value - segmentDistElapsed;
+        if (remainingKm <= 0.1 && remainingKm > 0.02) isPreAlert = true;
+      }
+
+      if (isPreAlert) {
+        this.state.lastSpokenAlertIndex = currentSegmentIndex;
+        if (currentSegmentIndex < routine.length - 1) {
+          // Alert for next segment
+          const next = routine[currentSegmentIndex + 1];
+          let msg = this.translations['builder_segment_alert'] || 'Soon {{type}} starts.';
+          const hintMsg = this.translations[`hint_${next.type}`] || '';
+          const typeName = this.translations[`segment_type_${next.type}`] || next.type;
+          const unitName = this.translations[next.targetType === 'time' ? 'unit_min' : 'unit_km'] || (next.targetType === 'time' ? 'min' : 'km');
+
+          msg = msg.replace('{{type}}', typeName)
+                   .replace('{{value}}', next.value.toString())
+                   .replace('{{unit}}', unitName)
+                   .replace('{{hint}}', hintMsg);
+          this.speakSafe(msg, ttsLang);
+        } else {
+          // Alert for routine ending
+          let msg = this.translations['builder_routine_ending'] || 'Program ending soon.';
+          this.speakSafe(msg, ttsLang);
+        }
+      }
+    }
+
+    // 2. Actual Transition
+    let isFinished = false;
+    if (segment.targetType === 'time') {
+      if (segmentTimeElapsed >= segment.value * 60) isFinished = true;
+    } else {
+      if (segmentDistElapsed >= segment.value) isFinished = true;
+    }
+
+    if (isFinished) {
+      if (currentSegmentIndex < routine.length - 1) {
+        this.state.currentSegmentIndex++;
+        this.state.segmentTimeStart = totalSeconds;
+        this.state.segmentDistStart = distanceKm;
+        
+        const nextSegment = routine[this.state.currentSegmentIndex];
+        let msg = this.translations['builder_next_segment'] || 'Segment finished. Next is {{type}}.';
+        const hintMsg = this.translations[`hint_${nextSegment.type}`] || '';
+        const typeName = this.translations[`segment_type_${nextSegment.type}`] || nextSegment.type;
+        const unitName = this.translations[nextSegment.targetType === 'time' ? 'unit_min' : 'unit_km'] || (nextSegment.targetType === 'time' ? 'min' : 'km');
+
+        msg = msg.replace('{{type}}', typeName)
+                 .replace('{{value}}', nextSegment.value.toString())
+                 .replace('{{unit}}', unitName)
+                 .replace('{{hint}}', hintMsg);
+        
+        const ttsLang = getTTSLanguage(language);
+        this.speakSafe(msg, ttsLang);
+      } else {
+        this.state.currentSegmentIndex = -1; // Finished all
+        let msg = this.translations['builder_routine_finished'] || 'Program finished. Continuous running starts now.';
+        const ttsLang = getTTSLanguage(language);
+        this.speakSafe(msg, ttsLang);
+      }
     }
   }
 

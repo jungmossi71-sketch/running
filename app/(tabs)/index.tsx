@@ -179,7 +179,10 @@ export default function HomeScreen() {
             <Ionicons name="color-palette" size={24} color={appTheme === 'cyberpunk' ? '#FF00FF' : '#B026FF'} />
             <Text style={styles.actionText}>{t('theme')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => router.push('/(tabs)/explore')}
+          >
             <Ionicons name="build" size={24} color={colors.sub} />
             <Text style={styles.actionText}>{t('builder')}</Text>
           </TouchableOpacity>

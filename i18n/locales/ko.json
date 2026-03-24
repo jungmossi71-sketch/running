@@ -86,6 +86,25 @@
     "delete_confirm_title": "기록 삭제",
     "delete_confirm_msg": "이 러닝 기록을 정말 삭제하시겠습니까?",
     "delete": "삭제",
-    "cancel": "취소"
+    "cancel": "취소",
+    "builder_start_routine": "반갑습니다! 오늘 진행할 프로그램은 {{name}} 입니다. 끝까지 함께 완주해 봅시다!",
+    "builder_next_segment": "구간이 종료되었습니다. 정말 잘 따라오고 계세요! 다음은 {{value}}{{unit}} 동안의 {{type}} 구간입니다. {{hint}}",
+    "builder_routine_finished": "멋져요! 오늘 프로그램의 모든 구간을 완벽하게 마쳤습니다. 이제 남은 거리는 자유로운 페이스로 마무리해 주세요. 수고하셨습니다!",
+    "speech_start_summary": "목표 거리 {{km}}km, 목표 페이스 {{m}}분 {{s}}초로 러닝을 시작합니다. 페이스 러너인 제가 옆에서 끝까지 도와드릴게요. 화이팅!",
+    "builder_first_segment_hint": "첫 번째 구간은 {{value}}{{unit}} 동안 진행되는 {{type}}입니다. {{hint}}",
+    "hint_warmup": "부상 예방을 위해 가벼운 조깅으로 몸을 충분히 예열하며 시작할게요.",
+    "hint_steady": "안정적인 호흡을 유지하면서 정해진 속도로 꾸준히 달려봅시다.",
+    "hint_interval": "페이스를 집중해서 높여보세요! 숨이 조금 차오를 정도로 강하게 밀어붙일 시간입니다.",
+    "hint_recovery": "호흡을 가다듬으며 천천히 에너지를 충전합시다. 다음 구간을 위해 몸을 가라앉히는 단계예요.",
+    "hint_cooldown": "오늘의 훈련이 거의 끝났습니다. 가벼운 걸음으로 피로를 풀며 몸을 진정시켜 보세요.",
+    "builder_segment_alert": "잠시 후 {{type}} 구간이 시작됩니다. {{value}}{{unit}} 동안 진행됩니다. {{hint}}",
+    "builder_routine_ending": "잠시 후 오늘의 모든 공식 훈련 프로그램이 종료됩니다. 정말 고생 많으셨어요!",
+    "segment_type_warmup": "웜업",
+    "segment_type_steady": "정속",
+    "segment_type_interval": "인터벌",
+    "segment_type_recovery": "리커버리",
+    "segment_type_cooldown": "쿨다운",
+    "unit_min": "분",
+    "unit_km": "킬로미터"
   }
 }
