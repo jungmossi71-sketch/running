@@ -8,7 +8,6 @@
     "scheme": "running",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "newArchEnabled": false,
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -35,8 +34,7 @@
         "FOREGROUND_SERVICE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "newArchEnabled": false,
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": false
     },
     "web": {
       "output": "static",
