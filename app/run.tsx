@@ -452,9 +452,7 @@ export default function ActiveRunScreen() {
         source={
           customBackgroundUri 
             ? { uri: customBackgroundUri } 
-            : appTheme === 'cyberpunk' ? THEME_BACKGROUNDS.cyberpunk 
-            : appTheme === 'electric_blue' ? THEME_BACKGROUNDS.electric_blue 
-            : { uri: 'https://images.unsplash.com/photo-1541252876598-6aa76d05afec' }
+            : THEME_BACKGROUNDS[appTheme] || { uri: 'https://images.unsplash.com/photo-1541252876598-6aa76d05afec' }
         } 
         style={styles.backgroundMedia}
         imageStyle={{ opacity: customBackgroundUri || appTheme !== 'default' ? 0.6 : 0.4 }}

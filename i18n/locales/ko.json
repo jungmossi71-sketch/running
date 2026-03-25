@@ -2,7 +2,7 @@
   "translation": {
     "welcome": "러닝 준비 완료",
     "home": "홈",
-    "builder": "프로그램 조립",
+    "builder": "프로그램 빌더",
     "runner": "자유 러닝",
     "theme": "테마 상점",
     "start_run": "러닝 시작하기",
@@ -12,7 +12,7 @@
     "avg_pace": "평균 페이스",
     "mode_outdoor": "야외 러닝 (GPS)",
     "mode_indoor": "트레드밀 (영상)",
-    "builder_title": "프로그램 조립",
+    "builder_title": "프로그램 빌더",
     "builder_subtitle": "블록을 메뉴에서 드래그하여 나만의 훈련 루틴을 만드세요.",
     "add_segment": "구간 추가하기",
     "starter_presets": "초심자 추천 프리셋",

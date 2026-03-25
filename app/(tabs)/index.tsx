@@ -20,7 +20,7 @@ export default function HomeScreen() {
   const [langModalVisible, setLangModalVisible] = useState(false);
   const { customBackgroundUri, appTheme, colors } = useThemeContext();
   const { THEME_BACKGROUNDS } = require('../../context/ThemeContext');
-  const { history, weeklyGoal, updateWeeklyGoal } = useHistoryContext();
+  const { history, weeklyGoal, updateWeeklyGoal, mileageBalance } = useHistoryContext();
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [tempGoal, setTempGoal] = useState(weeklyGoal);
   
@@ -82,9 +82,7 @@ export default function HomeScreen() {
       source={
         customBackgroundUri 
           ? { uri: customBackgroundUri } 
-          : appTheme === 'cyberpunk' ? THEME_BACKGROUNDS.cyberpunk 
-          : appTheme === 'electric_blue' ? THEME_BACKGROUNDS.electric_blue 
-          : undefined
+          : THEME_BACKGROUNDS[appTheme]
       } 
       style={[styles.container, !customBackgroundUri && appTheme === 'default' && { backgroundColor: '#000' }]}
       imageStyle={{ opacity: 0.3 }}
@@ -97,7 +95,7 @@ export default function HomeScreen() {
           <View style={{ flex: 1, paddingRight: 16 }}>
             <Text style={styles.greeting}>{t('welcome')}</Text>
             <Text style={styles.appTitle} numberOfLines={1} adjustsFontSizeToFit>
-              ANTIGRAVITY<Text style={[styles.neonText, { color: colors.main }]}>.RUN</Text>
+              HAPPY<Text style={[styles.neonText, { color: colors.main }]}> RUN</Text>
             </Text>
           </View>
           <View style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 10, flexShrink: 0, paddingRight: 4 }}>
@@ -110,7 +108,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <View style={[styles.mileageBadge, { borderColor: colors.main, backgroundColor: `${colors.main}20` }]}>
               <Ionicons name="flash" size={16} color={colors.main} />
-              <Text style={[styles.mileageText, { color: colors.main }]}>1,240 M</Text>
+              <Text style={[styles.mileageText, { color: colors.main }]}>{Math.floor(mileageBalance).toLocaleString()} M</Text>
             </View>
           </View>
         </View>
@@ -181,16 +179,16 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.actionCard}
-            onPress={() => router.push('/(tabs)/explore')}
+            onPress={() => router.push('/(tabs)/history')}
           >
-            <Ionicons name="build" size={24} color={colors.sub} />
-            <Text style={styles.actionText}>{t('builder')}</Text>
+            <Ionicons name="time" size={24} color={colors.sub} />
+            <Text style={styles.actionText}>{t('history_title')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Voice Coach Toggle */}
         <TouchableOpacity 
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: coachConfig.isPaceMakerActive ? colors.main : 'rgba(255,255,255,0.1)' }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, marginBottom: 32, borderWidth: 1, borderColor: coachConfig.isPaceMakerActive ? colors.main : 'rgba(255,255,255,0.1)' }}
           onPress={() => { setTempCoach(coachConfig); setCoachModalVisible(true); }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -345,7 +343,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   greeting: {
     color: '#888',
@@ -381,7 +379,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5, 5, 5, 0.85)',
     borderRadius: 24,
     padding: 24,
-    marginBottom: 40,
+    marginBottom: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },
@@ -423,7 +421,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     padding: 6,
-    marginBottom: 30,
+    marginBottom: 32,
   },
   modeButton: {
     flex: 1,
@@ -448,7 +446,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 16,
-    marginBottom: 40,
+    marginBottom: 32,
   },
   actionCard: {
     flex: 1,

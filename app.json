@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "running",
+    "name": "Happy Run",
     "slug": "running",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "running",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -16,10 +16,11 @@
           "fetch",
           "audio"
         ],
-        "NSMotionUsageDescription": "Allow ANTIGRAVITY.RUN to count your steps for indoor runs."
+        "NSMotionUsageDescription": "Allow Happy Run to count your steps for indoor runs."
       }
     },
     "android": {
+      "package": "com.happyrun.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -46,7 +47,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow ANTIGRAVITY.RUN to track your runs in the background."
+          "locationAlwaysAndWhenInUsePermission": "Allow Happy Run to track your runs in the background."
         }
       ],
       [
@@ -66,6 +67,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9f55e1b5-7277-48d0-81c0-f90de20d9de4"
+      }
     }
   }
 }

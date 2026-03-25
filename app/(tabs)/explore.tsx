@@ -66,9 +66,7 @@ export default function BuilderScreen() {
       source={
         customBackgroundUri 
           ? { uri: customBackgroundUri } 
-          : appTheme === 'cyberpunk' ? THEME_BACKGROUNDS.cyberpunk 
-          : appTheme === 'electric_blue' ? THEME_BACKGROUNDS.electric_blue 
-          : undefined
+          : THEME_BACKGROUNDS[appTheme]
       } 
       style={[styles.container, !customBackgroundUri && appTheme === 'default' && { backgroundColor: '#0A0A0A' }]}
       imageStyle={{ opacity: 0.3 }}

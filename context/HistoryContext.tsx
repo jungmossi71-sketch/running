@@ -36,7 +36,7 @@ const HistoryContext = createContext<HistoryContextType>({
 export const HistoryProvider = ({ children }: { children: React.ReactNode }) => {
   const [history, setHistory] = useState<RunRecord[]>([]);
   const [weeklyGoal, setWeeklyGoal] = useState<number>(40.0);
-  const [mileageBalance, setMileageBalance] = useState<number>(50.0);
+  const [mileageBalance, setMileageBalance] = useState<number>(9999.0);
 
   useEffect(() => {
     AsyncStorage.getItem('run_history').then((data) => {
@@ -45,9 +45,9 @@ export const HistoryProvider = ({ children }: { children: React.ReactNode }) => 
     AsyncStorage.getItem('run_weekly_goal').then((data) => {
       if (data) setWeeklyGoal(parseFloat(data));
     });
-    AsyncStorage.getItem('run_mileage_balance').then((data) => {
-      if (data) setMileageBalance(parseFloat(data));
-    });
+    // 테스트 단계를 위해 마일리지를 충분히(9999) 부여합니다.
+    setMileageBalance(9999.0);
+    AsyncStorage.setItem('run_mileage_balance', '9999.0');
   }, []);
 
   const updateWeeklyGoal = async (goal: number) => {

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type AppThemeType = 'default' | 'cyberpunk' | 'electric_blue';
+export type AppThemeType = 'default' | 'cyberpunk' | 'electric_blue' | 'morning_forest' | 'solar_flare' | 'vaporwave' | 'minimal_snow';
 
 export interface ThemeColors {
   main: string;
@@ -12,11 +12,19 @@ export const THEME_PALETTES: Record<AppThemeType, ThemeColors> = {
   default: { main: '#39FF14', sub: '#00F0FF' },
   cyberpunk: { main: '#FF00FF', sub: '#FFFF00' },
   electric_blue: { main: '#00BFFF', sub: '#00F0FF' },
+  morning_forest: { main: '#26DE81', sub: '#FED330' },
+  solar_flare: { main: '#E67E22', sub: '#E74C3C' },
+  vaporwave: { main: '#FF71CE', sub: '#01CDFE' },
+  minimal_snow: { main: '#3498DB', sub: '#ECF0F1' },
 };
 
 export const THEME_BACKGROUNDS = {
   cyberpunk: require('../assets/images/cyberpunk_bg.png'),
   electric_blue: require('../assets/images/electric_bg.png'),
+  morning_forest: require('../assets/images/morning_forest_bg.png'), // Refresh comment
+  solar_flare: require('../assets/images/solar_bg.png'),
+  vaporwave: require('../assets/images/vaporwave_bg.png'),
+  minimal_snow: require('../assets/images/snow_bg.png'),
 };interface ThemeContextType {
   customBackgroundUri: string | null;
   setCustomBackgroundUri: (uri: string | null) => void;
@@ -48,7 +56,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       if (uri) setCustomBackgroundUriState(uri);
     });
     AsyncStorage.getItem('app_theme').then((theme) => {
-      if (theme && (theme === 'default' || theme === 'cyberpunk' || theme === 'electric_blue')) {
+      const validThemes: AppThemeType[] = ['default', 'cyberpunk', 'electric_blue', 'morning_forest', 'solar_flare', 'vaporwave', 'minimal_snow'];
+      if (theme && validThemes.includes(theme as AppThemeType)) {
         setAppThemeState(theme as AppThemeType);
       }
     });

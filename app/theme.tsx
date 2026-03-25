@@ -54,9 +54,7 @@ export default function ThemeStoreScreen() {
       source={
         customBackgroundUri 
           ? { uri: customBackgroundUri } 
-          : appTheme === 'cyberpunk' ? THEME_BACKGROUNDS.cyberpunk 
-          : appTheme === 'electric_blue' ? THEME_BACKGROUNDS.electric_blue 
-          : undefined
+          : THEME_BACKGROUNDS[appTheme]
       } 
       style={[styles.container, !customBackgroundUri && appTheme === 'default' && { backgroundColor: '#0A0A0A' }]}
       imageStyle={{ opacity: 0.3 }}
@@ -129,9 +127,11 @@ export default function ThemeStoreScreen() {
             style={[styles.themeCard, { borderColor: appTheme === 'cyberpunk' ? '#FF00FF' : '#333' }]}
             onPress={() => handleThemePress('cyberpunk', 50)}
           >
-            <View style={[styles.themePreview, { backgroundColor: '#200030' }]}>
-              <Ionicons name="color-palette" size={40} color="#FF00FF" />
-            </View>
+            <ImageBackground source={THEME_BACKGROUNDS.cyberpunk} style={styles.themePreview}>
+              <View style={styles.previewOverlay}>
+                <Ionicons name="flash" size={40} color="#FF00FF" />
+              </View>
+            </ImageBackground>
             <View style={styles.themeInfo}>
               <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>{t('cyberpunk_purple')}</Text>
               {appTheme === 'cyberpunk' ? (
@@ -156,9 +156,11 @@ export default function ThemeStoreScreen() {
             style={[styles.themeCard, { borderColor: appTheme === 'electric_blue' ? '#00BFFF' : '#333' }]}
             onPress={() => handleThemePress('electric_blue', 100)}
           >
-            <View style={[styles.themePreview, { backgroundColor: '#002030' }]}>
-              <Ionicons name="color-palette" size={40} color="#00BFFF" />
-            </View>
+            <ImageBackground source={THEME_BACKGROUNDS.electric_blue} style={styles.themePreview}>
+              <View style={styles.previewOverlay}>
+                <Ionicons name="pulse" size={40} color="#00BFFF" />
+              </View>
+            </ImageBackground>
             <View style={styles.themeInfo}>
               <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>{t('electric_blue')}</Text>
               {appTheme === 'electric_blue' ? (
@@ -173,6 +175,122 @@ export default function ThemeStoreScreen() {
                 <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
                   <Ionicons name="flash" size={14} color="#888" />
                   <Text style={[styles.priceText, { color: '#888' }]}>{t('cost_m', { price: 100 })}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Morning Forest Theme */}
+          <TouchableOpacity 
+            style={[styles.themeCard, { borderColor: appTheme === 'morning_forest' ? '#26DE81' : '#333' }]}
+            onPress={() => handleThemePress('morning_forest', 150)}
+          >
+            <ImageBackground source={THEME_BACKGROUNDS.morning_forest} style={styles.themePreview}>
+              <View style={styles.previewOverlay}>
+                <Ionicons name="sunny" size={40} color="#FED330" />
+              </View>
+            </ImageBackground>
+            <View style={styles.themeInfo}>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>아침의 숲 (Morning)</Text>
+              {appTheme === 'morning_forest' ? (
+                <View style={[styles.priceBtn, { backgroundColor: 'rgba(38,222,129,0.2)' }]}>
+                  <Text style={[styles.priceText, { color: '#26DE81' }]}>선택됨</Text>
+                </View>
+              ) : unlockedThemes.includes('morning_forest') ? (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('equip')}</Text>
+                </View>
+              ) : (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Ionicons name="flash" size={14} color="#888" />
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('cost_m', { price: 150 })}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Vaporwave Theme */}
+          <TouchableOpacity 
+            style={[styles.themeCard, { borderColor: appTheme === 'vaporwave' ? '#FF71CE' : '#333' }]}
+            onPress={() => handleThemePress('vaporwave', 200)}
+          >
+            <ImageBackground source={THEME_BACKGROUNDS.vaporwave} style={styles.themePreview}>
+              <View style={styles.previewOverlay}>
+                <Ionicons name="planet" size={40} color="#FF71CE" />
+              </View>
+            </ImageBackground>
+            <View style={styles.themeInfo}>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>베이퍼웨이브 (Vapor)</Text>
+              {appTheme === 'vaporwave' ? (
+                <View style={[styles.priceBtn, { backgroundColor: 'rgba(255,113,206,0.2)' }]}>
+                  <Text style={[styles.priceText, { color: '#FF71CE' }]}>선택됨</Text>
+                </View>
+              ) : unlockedThemes.includes('vaporwave') ? (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('equip')}</Text>
+                </View>
+              ) : (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Ionicons name="flash" size={14} color="#888" />
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('cost_m', { price: 200 })}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Solar Flare Theme */}
+          <TouchableOpacity 
+            style={[styles.themeCard, { borderColor: appTheme === 'solar_flare' ? '#E67E22' : '#333' }]}
+            onPress={() => handleThemePress('solar_flare', 300)}
+          >
+            <ImageBackground source={THEME_BACKGROUNDS.solar_flare} style={styles.themePreview}>
+              <View style={styles.previewOverlay}>
+                <Ionicons name="flame" size={40} color="#E67E22" />
+              </View>
+            </ImageBackground>
+            <View style={styles.themeInfo}>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>태양의 파동 (Solar)</Text>
+              {appTheme === 'solar_flare' ? (
+                <View style={[styles.priceBtn, { backgroundColor: 'rgba(230,126,34,0.2)' }]}>
+                  <Text style={[styles.priceText, { color: '#E67E22' }]}>선택됨</Text>
+                </View>
+              ) : unlockedThemes.includes('solar_flare') ? (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('equip')}</Text>
+                </View>
+              ) : (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Ionicons name="flash" size={14} color="#888" />
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('cost_m', { price: 300 })}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Minimal Snow Theme */}
+          <TouchableOpacity 
+            style={[styles.themeCard, { borderColor: appTheme === 'minimal_snow' ? '#3498DB' : '#333' }]}
+            onPress={() => handleThemePress('minimal_snow', 400)}
+          >
+            <ImageBackground source={THEME_BACKGROUNDS.minimal_snow} style={styles.themePreview}>
+              <View style={styles.previewOverlay}>
+                <Ionicons name="snow" size={40} color="#3498DB" />
+              </View>
+            </ImageBackground>
+            <View style={styles.themeInfo}>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>미니멀 스노우 (Snow)</Text>
+              {appTheme === 'minimal_snow' ? (
+                <View style={[styles.priceBtn, { backgroundColor: 'rgba(52,152,219,0.2)' }]}>
+                  <Text style={[styles.priceText, { color: '#3498DB' }]}>선택됨</Text>
+                </View>
+              ) : unlockedThemes.includes('minimal_snow') ? (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('equip')}</Text>
+                </View>
+              ) : (
+                <View style={[styles.priceBtn, { backgroundColor: '#333' }]}>
+                  <Ionicons name="flash" size={14} color="#888" />
+                  <Text style={[styles.priceText, { color: '#888' }]}>{t('cost_m', { price: 400 })}</Text>
                 </View>
               )}
             </View>
@@ -355,6 +473,12 @@ const styles = StyleSheet.create({
   },
   themePreview: {
     height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
