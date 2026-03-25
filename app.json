@@ -7,8 +7,8 @@
     "icon": "./assets/images/icon.png",
     "scheme": "running",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "ios": {
+      "newArchEnabled": false,
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -35,6 +35,7 @@
         "FOREGROUND_SERVICE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
+      "newArchEnabled": false,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
