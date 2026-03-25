@@ -36,8 +36,7 @@
         "ACTIVITY_RECOGNITION"
       ],
       "newArchEnabled": false,
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "output": "static",
@@ -66,8 +65,8 @@
       "expo-localization"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": false,
+      "reactCompiler": false
     },
     "extra": {
       "router": {},
