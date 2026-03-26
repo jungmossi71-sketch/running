@@ -9,14 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "infoPlist": {
-        "UIBackgroundModes": [
-          "location",
-          "fetch",
-          "audio"
-        ],
-        "NSMotionUsageDescription": "Allow Happy Run to count your steps for indoor runs."
-      }
+      "bundleIdentifier": "com.jungmossi.happyrun"
     },
     "android": {
       "package": "com.jungmossi.happyrun",
@@ -25,11 +18,6 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "config": {
-        "googleMaps": {
-          "apiKey": "DUMMY_KEY_FOR_GRADLE_MERGE"
-        }
       }
     },
     "web": {
@@ -58,10 +46,6 @@
       ],
       "expo-localization"
     ],
-    "experiments": {
-      "typedRoutes": false,
-      "reactCompiler": false
-    },
     "extra": {
       "router": {},
       "eas": {
