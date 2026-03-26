@@ -19,14 +19,18 @@
       }
     },
     "android": {
-      "package": "com.happyrun.app",
+      "package": "com.jungmossi.happyrun",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": false
+      "config": {
+        "googleMaps": {
+          "apiKey": "DUMMY_KEY_FOR_GRADLE_MERGE"
+        }
+      }
     },
     "web": {
       "output": "static",
