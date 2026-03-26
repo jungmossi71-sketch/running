@@ -21,7 +21,7 @@ export const THEME_PALETTES: Record<AppThemeType, ThemeColors> = {
 export const THEME_BACKGROUNDS = {
   cyberpunk: require('../assets/images/cyberpunk_bg.png'),
   electric_blue: require('../assets/images/electric_bg.png'),
-  morning_forest: require('../assets/images/morning_forest_bg.png'), // Refresh comment
+  morning_forest: require('../assets/images/forest_bg.png'),
   solar_flare: require('../assets/images/solar_bg.png'),
   vaporwave: require('../assets/images/vaporwave_bg.png'),
   minimal_snow: require('../assets/images/snow_bg.png'),
