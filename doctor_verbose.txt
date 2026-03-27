@@ -1,0 +1,25 @@
+﻿Running 16 checks on your project...
+??Check package.json for common issues
+??Check Expo config for common issues
+??Check if the project meets version requirements for submission to app stores
+??Check for lock file
+??Check dependencies for packages that should not be installed directly
+??Check for app config fields that may not be synced in a non-CNG project
+??Check npm/yarn versions
+??Check native tooling versions
+??Check for common project setup issues
+??Check for issues with Metro config
+??Check Expo config (app.json/ app.config.js) schema
+??Check that required peer dependencies are installed
+??Check that packages match versions required by installed Expo SDK
+??Check that native modules do not use incompatible support packages
+??Check that native modules use compatible support package versions for installed Expo SDK
+??Check for legacy global CLI installed locally
+
+15/16 checks passed. 1 checks failed. Possible issues detected:
+
+??Check for lock file
+No lock file detected.
+Advice:
+Install dependencies using the package manager of your choice to a generate a lock file.
+

@@ -55,7 +55,19 @@
           }
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "kotlinVersion": "1.9.24",
+            "gradleArguments": ["-Xmx2048m", "-XX:MaxMetaspaceSize=512m"]
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},
