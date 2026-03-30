@@ -82,5 +82,15 @@
     "radio_power": "パワースプリント (Rock)",
     "radio_cadence": "ケイデンス (Step Metronome)",
     "now_playing": "今再生中"
-  }
+  },
+  "theme_default": "デフォルト",
+  "theme_morning_forest": "朝の森",
+  "theme_vaporwave": "ベイパーウェイブ",
+  "theme_solar": "ソーラーフレア",
+  "theme_snow": "ミニマルスノー",
+  "theme_cyberpunk": "サイバーパンク",
+  "theme_electric": "エレクトリックブルー",
+  "cyberpunk_purple": "サイバーパンク紫",
+  "electric_blue": "エレクトリックブルー",
+  "marathon_elite_hud": "マラソンエリートHUD"
 }

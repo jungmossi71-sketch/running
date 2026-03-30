@@ -17,8 +17,12 @@ import Map from '../components/Map';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import { activeRunStore } from '../context/ActiveRunStore';
+import Constants from 'expo-constants';
 
 import { Pedometer } from 'expo-sensors';
+
+// Expo Go에서는 백그라운드 Location Task를 지원하지 않으므로 watchPositionAsync로 폴백
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -79,9 +83,6 @@ export default function ActiveRunScreen() {
   const { currentRoutine, currentRoutineName } = useBuilderContext();
 
   const [seconds, setSeconds] = useState(0);
-  const [distanceKm, setDistanceKm] = useState(0);
-  const [currentSpeed, setCurrentSpeed] = useState(0);
-  const [route, setRoute] = useState<{latitude: number, longitude: number}[]>([]);
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const unlockAnim = useRef(new Animated.Value(1)).current;
@@ -96,11 +97,13 @@ export default function ActiveRunScreen() {
   const [metronomeBpm, setMetronomeBpm] = useState(170);
   const metronomeTimer = useRef<any>(null);
   const metronomeSoundRef = useRef<Audio.Sound | null>(null);
+  const foregroundLocationSub = useRef<Location.LocationSubscription | null>(null);
   
   // Indoor-specific state
   const [indoorSubMode, setIndoorSubMode] = useState<'active' | 'passive' | null>(null);
   const [isSelectingMode, setIsSelectingMode] = useState(isIndoor);
   const [manualDistanceStr, setManualDistanceStr] = useState('0.00');
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   // Start the run in the global store
   useEffect(() => {
@@ -145,12 +148,7 @@ export default function ActiveRunScreen() {
   useEffect(() => {
     const unsubscribe = activeRunStore.subscribe(() => {
       const state = activeRunStore.getState();
-      setRunState(state); // Update local state with global store state
-      setDistanceKm(state.distanceKm);
-      setCurrentSpeed(state.currentSpeed);
-      if (state.indoorMode !== 'active') {
-        setRoute([...state.route]);
-      }
+      setRunState(state);
     });
     return unsubscribe;
   }, []);
@@ -194,31 +192,55 @@ export default function ActiveRunScreen() {
     };
   }, [isIndoor, indoorSubMode, isPaused, isSelectingMode]);
 
-  // GPS Tracking logic (Now only starts the background task if outdoor)
+  // GPS Tracking logic
+  // Expo Go: watchPositionAsync (포그라운드 전용)
+  // Standalone 빌드: startLocationUpdatesAsync (백그라운드 지원)
   useEffect(() => {
     if (isIndoor || isSelectingMode) return;
 
+    let cancelled = false;
+
     (async () => {
       const { status: fgStatus } = await Location.requestForegroundPermissionsAsync().catch(() => ({ status: 'denied' }));
-      const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync().catch(() => ({ status: 'denied' }));
-      
-      if (fgStatus !== 'granted') return;
 
-      await Location.startLocationUpdatesAsync('background-location-task', {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 2000,
-        distanceInterval: 5,
-        showsBackgroundLocationIndicator: true,
-        foregroundService: {
-          notificationTitle: "ANTIGRAVITY.RUN",
-          notificationBody: "Tracking your run...",
-          notificationColor: "#39FF14",
-        }
-      }).catch(e => console.warn('Background Location error:', e));
+      if (cancelled) return;
+      if (fgStatus !== 'granted') {
+        setLocationPermissionDenied(true);
+        return;
+      }
+
+      if (isExpoGo) {
+        // Expo Go 환경: 포그라운드 위치 추적
+        const sub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 5 },
+          (location) => { if (!cancelled) activeRunStore.updateLocation([location]); }
+        ).catch(e => { console.warn('Foreground location error:', e); return null; });
+        foregroundLocationSub.current = sub;
+      } else {
+        // 독립 빌드: 백그라운드 위치 추적
+        await Location.requestBackgroundPermissionsAsync().catch(() => ({ status: 'denied' }));
+        await Location.startLocationUpdatesAsync('background-location-task', {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 2000,
+          distanceInterval: 5,
+          showsBackgroundLocationIndicator: true,
+          foregroundService: {
+            notificationTitle: "ANTIGRAVITY.RUN",
+            notificationBody: "Tracking your run...",
+            notificationColor: "#39FF14",
+          }
+        }).catch(e => console.warn('Background Location error:', e));
+      }
     })();
 
-    return () => { 
-      Location.stopLocationUpdatesAsync('background-location-task').catch(() => {});
+    return () => {
+      cancelled = true;
+      if (isExpoGo) {
+        foregroundLocationSub.current?.remove();
+        foregroundLocationSub.current = null;
+      } else {
+        Location.stopLocationUpdatesAsync('background-location-task').catch(() => {});
+      }
     };
   }, [isIndoor, isSelectingMode]);
 
@@ -372,6 +394,8 @@ export default function ActiveRunScreen() {
   }, [activeChannel, metronomeBpm, isPaused, mediaMode]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const manageAudio = async () => {
         // mediaMode가 music이 아니거나 일시 중지 중이거나 케이던스 모드이면 라디오 정지
         if (mediaMode !== 'music' || isPaused || activeChannel === 'cadence') {
@@ -392,9 +416,12 @@ export default function ActiveRunScreen() {
                 soundRef.current = null;
             }
 
+            if (cancelled) return;
+
             console.log(`Loading stream: ${activeChannel}...`);
             const sound = new Audio.Sound();
             sound.setOnPlaybackStatusUpdate((status) => {
+                if (cancelled) return;
                 if (status.isLoaded) {
                     if (status.isPlaying) setAudioStatus('PLAYING');
                     else if (status.didJustFinish) setAudioStatus('FINISHED');
@@ -408,20 +435,29 @@ export default function ActiveRunScreen() {
                 { uri: RADIO_STREAMS[activeChannel] },
                 { shouldPlay: true, isLooping: true, volume: 1.0 }
             );
-            
+
+            if (cancelled) {
+                sound.unloadAsync().catch(() => {});
+                return;
+            }
+
             soundRef.current = sound;
             console.log(`Playing audio: ${activeChannel} Success!`);
         } catch (e) {
-            setAudioStatus('FAILED');
-            console.log('Audio stream error details:', e);
+            if (!cancelled) {
+                setAudioStatus('FAILED');
+                console.log('Audio stream error details:', e);
+            }
         }
     };
 
     manageAudio();
 
     return () => {
+        cancelled = true;
         if (soundRef.current) {
             soundRef.current.unloadAsync().catch(() => {});
+            soundRef.current = null;
         }
     };
   }, [mediaMode, activeChannel, isPaused]);
@@ -432,12 +468,12 @@ export default function ActiveRunScreen() {
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const currentPace = distanceKm > 0 ? (seconds / 60) / distanceKm : 0;
+  const currentPace = runState.distanceKm > 0 ? (seconds / 60) / runState.distanceKm : 0;
   const paceM = Math.floor(currentPace);
   const paceS = Math.floor((currentPace - paceM) * 60);
-  const formattedPace = distanceKm > 0 ? `${paceM}'${paceS < 10 ? '0' : ''}${paceS}"` : `-'-"`;
+  const formattedPace = runState.distanceKm > 0 ? `${paceM}'${paceS < 10 ? '0' : ''}${paceS}"` : `-'-"`;
 
-  const speedKmh = currentSpeed * 3.6;
+  const speedKmh = runState.currentSpeed * 3.6;
   const instantPace = speedKmh > 0.5 ? 60 / speedKmh : 0;
   const iPaceM = Math.floor(instantPace);
   const iPaceS = Math.floor((instantPace - iPaceM) * 60);
@@ -513,7 +549,7 @@ export default function ActiveRunScreen() {
               
               {/* Distance Row (Mainly highlighted) */}
               <View style={[styles.statBox, { marginTop: 20 }]}>
-                 <Text style={[styles.statValue, { fontSize: 48, lineHeight: 52 }]}>{distanceKm.toFixed(2)}</Text>
+                 <Text style={[styles.statValue, { fontSize: 48, lineHeight: 52 }]}>{runState.distanceKm.toFixed(2)}</Text>
                  <Text style={styles.statLabel}>{t('kilometers').toUpperCase()}</Text>
               </View>
 
@@ -533,7 +569,7 @@ export default function ActiveRunScreen() {
               {/* Bottom KM/H & Status */}
               <View style={[styles.heartRateBox, { marginTop: 30 }]}>
                 <Ionicons name="flash" size={18} color={colors.main} />
-                <Text style={[styles.hrText, { color: colors.main }]}>{(currentSpeed * 3.6).toFixed(1)} KM/H</Text>
+                <Text style={[styles.hrText, { color: colors.main }]}>{(runState.currentSpeed * 3.6).toFixed(1)} KM/H</Text>
               </View>
 
               {/* Manual Distance Input for Passive Mode */}
@@ -560,11 +596,16 @@ export default function ActiveRunScreen() {
               {mediaMode === 'map' && (
                 isIndoor ? (
                   <View style={styles.placeholderMap}>
-                    <Ionicons name="navigate-circle" size={100} color="rgba(0,184,148,0.2)" />
-                    <Text style={{ color: '#555', marginTop: 10 }}>GPS SIGNAL ACTIVE</Text>
+                    <Ionicons name="walk" size={100} color="rgba(0,184,148,0.2)" />
+                    <Text style={{ color: '#555', marginTop: 10 }}>INDOOR MODE — GPS OFF</Text>
+                  </View>
+                ) : locationPermissionDenied ? (
+                  <View style={styles.placeholderMap}>
+                    <Ionicons name="location-outline" size={100} color="rgba(255,80,80,0.3)" />
+                    <Text style={{ color: '#e55', marginTop: 10, textAlign: 'center' }}>위치 권한이 거부되었습니다.{'\n'}설정에서 권한을 허용해 주세요.</Text>
                   </View>
                 ) : (
-                  <Map route={route} lineColor={colors.main} />
+                  <Map route={runState.route} lineColor={colors.main} />
                 )
               )}
 
@@ -613,8 +654,12 @@ export default function ActiveRunScreen() {
 
                     <Text style={styles.nowPlayingLabel}>{t('now_playing')}</Text>
                     <Text style={[styles.channelTitle, { color: colors.main }]}>{activeChannel === 'cadence' ? `${metronomeBpm} SPM` : t(`radio_${activeChannel}`)}</Text>
-                    <Text style={{ color: '#555', fontSize: 10, marginTop: -15, marginBottom: 15 }}>
-                        {activeChannel === 'cadence' ? `METRONOME STATUS: ${metronomeStatus}` : `STATUS: ${audioStatus}`}
+                    <Text style={{ color: audioStatus === 'FAILED' ? '#e55' : '#555', fontSize: 10, marginTop: -15, marginBottom: 15 }}>
+                        {activeChannel === 'cadence'
+                          ? `METRONOME: ${metronomeStatus}`
+                          : audioStatus === 'FAILED'
+                            ? '⚠ 네트워크 연결을 확인해 주세요'
+                            : `STATUS: ${audioStatus}`}
                     </Text>
 
                     {activeChannel === 'cadence' && (

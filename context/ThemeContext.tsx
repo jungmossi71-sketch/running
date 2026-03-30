@@ -62,7 +62,14 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
     AsyncStorage.getItem('unlocked_themes').then((data) => {
-      if (data) setUnlockedThemes(JSON.parse(data));
+      if (data) {
+        try {
+          setUnlockedThemes(JSON.parse(data));
+        } catch (e) {
+          console.error('unlocked_themes 파싱 실패, 초기화합니다.', e);
+          AsyncStorage.removeItem('unlocked_themes');
+        }
+      }
     });
   }, []);
 
@@ -80,10 +87,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const setAppTheme = async (theme: AppThemeType) => {
     setAppThemeState(theme);
     await AsyncStorage.setItem('app_theme', theme);
-    if (theme !== 'default') {
-      setCustomBackgroundUriState(null);
-      await AsyncStorage.removeItem('custom_bg');
-    }
+    // 커스텀 배경은 default 테마 전용이지만 데이터는 보존 —
+    // 다시 default로 돌아오면 자동 복구됨
   };
 
   const colors = THEME_PALETTES[appTheme];

@@ -64,7 +64,10 @@
             "targetSdkVersion": 34,
             "buildToolsVersion": "34.0.0",
             "kotlinVersion": "1.9.24",
-            "gradleArguments": ["-Xmx2048m", "-XX:MaxMetaspaceSize=512m"],
+            "gradleArguments": [
+              "-Xmx2048m",
+              "-XX:MaxMetaspaceSize=512m"
+            ],
             "packagingOptions": {
               "pickFirst": [
                 "**/libc++_shared.so",
@@ -73,7 +76,9 @@
             }
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

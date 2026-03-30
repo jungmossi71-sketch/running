@@ -42,13 +42,20 @@ export const BuilderProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     // Load presets from storage
     AsyncStorage.getItem('run_presets').then(data => {
-      if (data) setPresets(JSON.parse(data));
+      if (data) {
+        try {
+          setPresets(JSON.parse(data));
+        } catch (e) {
+          console.error('run_presets 파싱 실패, 초기화합니다.', e);
+          AsyncStorage.removeItem('run_presets');
+        }
+      }
     });
   }, []);
 
   const addSegment = (type: SegmentType) => {
     const newSegment: RoutineSegment = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type,
       targetType: type === 'steady' || type === 'interval' ? 'distance' : 'time',
       value: type === 'warmup' || type === 'cooldown' ? 5 : 1,
@@ -78,7 +85,7 @@ export const BuilderProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const saveAsPreset = async (name: string) => {
     const newPreset: RoutineProgram = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name,
       segments: [...currentRoutine],
     };

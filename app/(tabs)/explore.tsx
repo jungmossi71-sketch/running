@@ -256,25 +256,35 @@ export default function BuilderScreen() {
                              placeholder="5.0"
                              placeholderTextColor="#555"
                              value={selectedSegment.value.toString()}
-                             onChangeText={(v) => updateSegment(selectedSegment.id, { value: parseFloat(v) || 0 })}
+                             onChangeText={(v) => {
+                               const parsed = parseFloat(v);
+                               const clamped = isNaN(parsed) ? 0.1 : Math.max(0.1, Math.min(parsed, 999));
+                               updateSegment(selectedSegment.id, { value: clamped });
+                             }}
                           />
 
                           <Text style={styles.inputLabel}>TARGET PACE (Optional)</Text>
                           <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                            <TextInput 
+                            <TextInput
                                 style={[styles.textInput, { flex: 1 }]}
                                 keyboardType="numeric"
                                 placeholder="Min"
                                 value={selectedSegment.targetPaceM?.toString() || ''}
-                                onChangeText={(v) => updateSegment(selectedSegment.id, { targetPaceM: parseInt(v) || 0 })}
+                                onChangeText={(v) => {
+                                  const parsed = parseInt(v);
+                                  updateSegment(selectedSegment.id, { targetPaceM: isNaN(parsed) ? 0 : Math.max(0, Math.min(parsed, 59)) });
+                                }}
                             />
                             <Text style={{ color: '#FFF' }}>'</Text>
-                            <TextInput 
+                            <TextInput
                                 style={[styles.textInput, { flex: 1 }]}
                                 keyboardType="numeric"
                                 placeholder="Sec"
                                 value={selectedSegment.targetPaceS?.toString() || ''}
-                                onChangeText={(v) => updateSegment(selectedSegment.id, { targetPaceS: parseInt(v) || 0 })}
+                                onChangeText={(v) => {
+                                  const parsed = parseInt(v);
+                                  updateSegment(selectedSegment.id, { targetPaceS: isNaN(parsed) ? 0 : Math.max(0, Math.min(parsed, 59)) });
+                                }}
                             />
                             <Text style={{ color: '#FFF' }}>"</Text>
                           </View>

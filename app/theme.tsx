@@ -109,7 +109,7 @@ export default function ThemeStoreScreen() {
               <Ionicons name="color-palette" size={40} color="#39FF14" />
             </View>
             <View style={styles.themeInfo}>
-              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>기본 (Default)</Text>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>{t('theme_default')}</Text>
               {appTheme === 'default' ? (
                 <View style={[styles.priceBtn, { backgroundColor: 'rgba(57,255,20,0.2)' }]}>
                   <Text style={[styles.priceText, { color: '#39FF14' }]}>선택됨</Text>
@@ -191,7 +191,7 @@ export default function ThemeStoreScreen() {
               </View>
             </ImageBackground>
             <View style={styles.themeInfo}>
-              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>아침의 숲 (Morning)</Text>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>{t('theme_morning_forest')}</Text>
               {appTheme === 'morning_forest' ? (
                 <View style={[styles.priceBtn, { backgroundColor: 'rgba(38,222,129,0.2)' }]}>
                   <Text style={[styles.priceText, { color: '#26DE81' }]}>선택됨</Text>
@@ -220,7 +220,7 @@ export default function ThemeStoreScreen() {
               </View>
             </ImageBackground>
             <View style={styles.themeInfo}>
-              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>베이퍼웨이브 (Vapor)</Text>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>{t('theme_vaporwave')}</Text>
               {appTheme === 'vaporwave' ? (
                 <View style={[styles.priceBtn, { backgroundColor: 'rgba(255,113,206,0.2)' }]}>
                   <Text style={[styles.priceText, { color: '#FF71CE' }]}>선택됨</Text>
@@ -249,7 +249,7 @@ export default function ThemeStoreScreen() {
               </View>
             </ImageBackground>
             <View style={styles.themeInfo}>
-              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>태양의 파동 (Solar)</Text>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>{t('theme_solar')}</Text>
               {appTheme === 'solar_flare' ? (
                 <View style={[styles.priceBtn, { backgroundColor: 'rgba(230,126,34,0.2)' }]}>
                   <Text style={[styles.priceText, { color: '#E67E22' }]}>선택됨</Text>
@@ -278,7 +278,7 @@ export default function ThemeStoreScreen() {
               </View>
             </ImageBackground>
             <View style={styles.themeInfo}>
-              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>미니멀 스노우 (Snow)</Text>
+              <Text style={styles.themeName} numberOfLines={1} adjustsFontSizeToFit>{t('theme_snow')}</Text>
               {appTheme === 'minimal_snow' ? (
                 <View style={[styles.priceBtn, { backgroundColor: 'rgba(52,152,219,0.2)' }]}>
                   <Text style={[styles.priceText, { color: '#3498DB' }]}>선택됨</Text>

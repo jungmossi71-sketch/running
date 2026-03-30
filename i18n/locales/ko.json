@@ -106,5 +106,15 @@
     "segment_type_cooldown": "쿨다운",
     "unit_min": "분",
     "unit_km": "킬로미터"
-  }
+  },
+  "theme_default": "기본",
+  "theme_morning_forest": "아침의 숲",
+  "theme_vaporwave": "베이퍼웨이브",
+  "theme_solar": "태양의 파동",
+  "theme_snow": "미니멀 스노우",
+  "theme_cyberpunk": "사이버펑크",
+  "theme_electric": "일렉트릭 블루",
+  "cyberpunk_purple": "사이버펑크",
+  "electric_blue": "일렉트릭 블루",
+  "marathon_elite_hud": "마라톤 엘리트 HUD"
 }

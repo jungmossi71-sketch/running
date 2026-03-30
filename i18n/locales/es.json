@@ -82,5 +82,15 @@
     "radio_power": "Sprint de potencia (Rock)",
     "radio_midnight": "Radio de medianoche (City Pop)",
     "now_playing": "Reproduciendo ahora"
-  }
+  },
+  "theme_default": "Predeterminado",
+  "theme_morning_forest": "Bosque Matutino",
+  "theme_vaporwave": "Vaporwave",
+  "theme_solar": "Llamarada Solar",
+  "theme_snow": "Nieve Minimalista",
+  "theme_cyberpunk": "Ciberpunk",
+  "theme_electric": "Azul Eléctrico",
+  "cyberpunk_purple": "Ciberpunk Púrpura",
+  "electric_blue": "Azul Eléctrico",
+  "marathon_elite_hud": "HUD Maratón Élite"
 }

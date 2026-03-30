@@ -106,5 +106,15 @@
     "segment_type_cooldown": "Cooldown",
     "unit_min": "minutes",
     "unit_km": "kilometers"
-  }
+  },
+  "theme_default": "Default",
+  "theme_morning_forest": "Morning Forest",
+  "theme_vaporwave": "Vaporwave",
+  "theme_solar": "Solar Flare",
+  "theme_snow": "Minimal Snow",
+  "theme_cyberpunk": "Cyberpunk",
+  "theme_electric": "Electric Blue",
+  "cyberpunk_purple": "Cyberpunk Purple",
+  "electric_blue": "Electric Blue",
+  "marathon_elite_hud": "Marathon Elite HUD"
 }

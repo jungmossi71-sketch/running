@@ -3,7 +3,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeContext } from '../../context/ThemeContext';
-import { useHistoryContext } from '../../context/HistoryContext';
+import { useHistoryContext, RunRecord } from '../../context/HistoryContext';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 // @ts-ignore
 import Map from '../../components/Map';
 
@@ -21,9 +23,32 @@ export default function HistoryScreen() {
       t('delete_confirm_msg'),
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => deleteRun(id) }
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteRun(id);
+            } catch (e) {
+              Alert.alert('오류', '기록 삭제에 실패했습니다. 다시 시도해 주세요.');
+            }
+          }
+        }
       ]
     );
+  };
+
+  const handleShare = async (run: RunRecord) => {
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (!isAvailable) {
+      Alert.alert('공유 불가', '이 기기에서는 공유 기능을 사용할 수 없습니다.');
+      return;
+    }
+    const text = `🏃 Happy Run 기록\n\n📅 ${run.date}\n🏷 ${run.title}\n📏 ${run.distance} km\n⏱ ${run.time}\n⚡ ${run.pace} /km\n\nHappy Run 앱으로 기록했습니다.`;
+    // expo-sharing은 파일 공유만 지원하므로 텍스트를 임시 파일로 저장 후 공유
+    const fileUri = (FileSystem.cacheDirectory ?? '') + `run_${run.id}.txt`;
+    await FileSystem.writeAsStringAsync(fileUri, text, { encoding: FileSystem.EncodingType.UTF8 });
+    await Sharing.shareAsync(fileUri, { mimeType: 'text/plain', dialogTitle: '런 기록 공유' });
   };
 
   return (
@@ -55,6 +80,9 @@ export default function HistoryScreen() {
                   <Text style={[styles.dateText, { color: colors.sub }]}>{run.date}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity onPress={() => handleShare(run)}>
+                    <Ionicons name="share-outline" size={20} color={colors.sub} />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDelete(run.id)}>
                     <Ionicons name="trash-outline" size={20} color="#FF4444" />
                   </TouchableOpacity>

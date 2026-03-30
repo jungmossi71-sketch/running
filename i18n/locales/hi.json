@@ -82,5 +82,15 @@
     "radio_power": "पावर स्प्रिंट (Rock)",
     "radio_midnight": "मिडनाइट रेडियो (City Pop)",
     "now_playing": "अभी बज रहा है"
-  }
+  },
+  "theme_default": "डिफ़ॉल्ट",
+  "theme_morning_forest": "सुबह का जंगल",
+  "theme_vaporwave": "वेपरवेव",
+  "theme_solar": "सौर ज्वाला",
+  "theme_snow": "न्यूनतम बर्फ",
+  "theme_cyberpunk": "साइबरपंक",
+  "theme_electric": "इलेक्ट्रिक नीला",
+  "cyberpunk_purple": "साइबरपंक बैंगनी",
+  "electric_blue": "इलेक्ट्रिक नीला",
+  "marathon_elite_hud": "मैराथन एलीट HUD"
 }
