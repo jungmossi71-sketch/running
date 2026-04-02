@@ -1,5 +1,6 @@
 import { LocationObject } from 'expo-location';
 import * as Speech from 'expo-speech';
+import { llmCoachService, RunContext } from './LlmCoachService';
 
 function getTTSLanguage(lang: string) {
   switch(lang) {
@@ -271,7 +272,26 @@ class ActiveRunStore {
                  .replace('{{feedback}}', feedback);
             
         const ttsLang = getTTSLanguage(language);
-        this.speakSafe(msg, ttsLang);
+
+        // LLM 코칭이 로드된 경우 LLM 응답으로 대체
+        if (llmCoachService.isLoaded()) {
+          const runCtx: RunContext = {
+            distanceKm,
+            elapsedSeconds: seconds,
+            currentSpeedMs: this.state.currentSpeed,
+            avgPaceSecPerKm: distanceKm > 0 ? seconds / distanceKm : 0,
+            targetPaceSecPerKm: config.isPaceMakerActive
+              ? (config.targetTimeMinutes / config.targetDistanceKm) * 60
+              : 0,
+            targetDistanceKm: config.targetDistanceKm,
+            language,
+          };
+          llmCoachService.generateAutoCoaching(runCtx).then((llmMsg) => {
+            if (llmMsg) this.speakSafe(llmMsg, ttsLang);
+          });
+        } else {
+          this.speakSafe(msg, ttsLang);
+        }
     }
 
     // 2. Time-based triggers (Every 5 min)

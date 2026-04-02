@@ -6,6 +6,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { HistoryProvider } from '../context/HistoryContext';
 import { VoiceCoachProvider } from '../context/VoiceCoachContext';
 import { BuilderProvider } from '../context/BuilderContext';
+import { LlmCoachProvider } from '../context/LlmCoachContext';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -46,6 +47,7 @@ export default function RootLayout() {
       <VoiceCoachProvider>
         <HistoryProvider>
           <BuilderProvider>
+            <LlmCoachProvider>
             <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -55,6 +57,7 @@ export default function RootLayout() {
               </Stack>
               <StatusBar style="auto" />
             </NavigationThemeProvider>
+            </LlmCoachProvider>
           </BuilderProvider>
         </HistoryProvider>
       </VoiceCoachProvider>

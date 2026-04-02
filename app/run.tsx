@@ -17,6 +17,7 @@ import Map from '../components/Map';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import { activeRunStore } from '../context/ActiveRunStore';
+import { useLlmCoach } from '../context/LlmCoachContext';
 import Constants from 'expo-constants';
 
 import { Pedometer } from 'expo-sensors';
@@ -88,7 +89,10 @@ export default function ActiveRunScreen() {
   const unlockAnim = useRef(new Animated.Value(1)).current;
   
   // Media states
-  const [mediaMode, setMediaMode] = useState<'map' | 'video' | 'music'>('map');
+  const [mediaMode, setMediaMode] = useState<'map' | 'video' | 'music' | 'chat'>('map');
+  const [chatInput, setChatInput] = useState('');
+  const llmCoach = useLlmCoach();
+  const chatScrollRef = useRef<ScrollView>(null);
   const [activeChannel, setActiveChannel] = useState('cadence'); // Default to Cadence as requested
   const visualizerAnims = useRef(Array(8).fill(0).map(() => new Animated.Value(0.2))).current;
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -522,12 +526,19 @@ export default function ActiveRunScreen() {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity 
-                style={[styles.mediaButton, mediaMode === 'music' && { backgroundColor: 'rgba(255,255,255,0.1)' }]} 
+              <TouchableOpacity
+                style={[styles.mediaButton, mediaMode === 'music' && { backgroundColor: 'rgba(255,255,255,0.1)' }]}
                 onPress={() => setMediaMode('music')}
               >
                 <Ionicons name="musical-notes" size={18} color={mediaMode === 'music' ? colors.main : '#AAA'} />
                 <Text style={styles.mediaBtnText}>{t('run_music')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.mediaButton, mediaMode === 'chat' && { backgroundColor: 'rgba(255,255,255,0.1)' }]}
+                onPress={() => setMediaMode('chat')}
+              >
+                <Ionicons name="chatbubble-ellipses" size={18} color={mediaMode === 'chat' ? colors.main : '#AAA'} />
               </TouchableOpacity>
             </View>
           </View>
@@ -687,6 +698,113 @@ export default function ActiveRunScreen() {
                     </ScrollView>
                 </View>
               )}
+
+              {mediaMode === 'chat' && (() => {
+                const runCtx = {
+                  distanceKm: runState.distanceKm,
+                  elapsedSeconds: seconds,
+                  currentSpeedMs: runState.currentSpeed,
+                  avgPaceSecPerKm: runState.distanceKm > 0 ? seconds / runState.distanceKm : 0,
+                  targetPaceSecPerKm: coachConfig.isPaceMakerActive
+                    ? (coachConfig.targetTimeMinutes / coachConfig.targetDistanceKm) * 60 : 0,
+                  targetDistanceKm: coachConfig.targetDistanceKm,
+                  language: i18n.language,
+                };
+                return (
+                  <View style={{ flex: 1, padding: 12 }}>
+                    {llmCoach.status !== 'ready' ? (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                        <Ionicons name="hardware-chip-outline" size={48} color={colors.main} />
+                        <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 15 }}>AI 러닝 코치</Text>
+                        <Text style={{ color: '#AAA', fontSize: 12, textAlign: 'center' }}>
+                          {'Qwen 2.5 0.5B 모델 (~400MB)\n온디바이스 AI 코치'}
+                        </Text>
+                        {llmCoach.status === 'downloading' && (
+                          <View style={{ width: '80%', height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3 }}>
+                            <View style={{ width: `${Math.round(llmCoach.downloadProgress * 100)}%`, height: 6, backgroundColor: colors.main, borderRadius: 3 }} />
+                          </View>
+                        )}
+                        {llmCoach.status === 'downloading' && (
+                          <Text style={{ color: colors.main, fontSize: 13 }}>{Math.round(llmCoach.downloadProgress * 100)}% 다운로드 중...</Text>
+                        )}
+                        {llmCoach.status === 'loading' && (
+                          <Text style={{ color: colors.main, fontSize: 13 }}>모델 로딩 중...</Text>
+                        )}
+                        {llmCoach.status === 'error' && (
+                          <Text style={{ color: '#f66', fontSize: 12 }}>{llmCoach.errorMessage}</Text>
+                        )}
+                        {(llmCoach.status === 'idle' || llmCoach.status === 'error') && (
+                          <TouchableOpacity
+                            onPress={llmCoach.downloadAndLoad}
+                            style={{ backgroundColor: colors.main, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 }}
+                          >
+                            <Text style={{ color: '#000', fontWeight: 'bold' }}>
+                              {llmCoach.isModelDownloaded ? '모델 로드' : '모델 다운로드'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={{ flex: 1 }}>
+                        <ScrollView
+                          ref={chatScrollRef}
+                          style={{ flex: 1 }}
+                          onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
+                        >
+                          {llmCoach.messages.length === 0 && (
+                            <Text style={{ color: '#666', textAlign: 'center', marginTop: 20, fontSize: 12 }}>
+                              AI 코치에게 질문하거나 조언을 요청해보세요
+                            </Text>
+                          )}
+                          {llmCoach.messages.map((msg) => (
+                            <View
+                              key={msg.id}
+                              style={{
+                                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                backgroundColor: msg.role === 'user' ? colors.main : 'rgba(255,255,255,0.1)',
+                                borderRadius: 14,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                marginVertical: 4,
+                                maxWidth: '85%',
+                              }}
+                            >
+                              <Text style={{ color: msg.role === 'user' ? '#000' : '#FFF', fontSize: 13 }}>
+                                {msg.content}
+                              </Text>
+                            </View>
+                          ))}
+                          {llmCoach.isGenerating && (
+                            <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, marginVertical: 4 }}>
+                              <Text style={{ color: '#AAA', fontSize: 13 }}>생각 중...</Text>
+                            </View>
+                          )}
+                        </ScrollView>
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                          <TextInput
+                            style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, color: '#FFF', fontSize: 13 }}
+                            placeholder="코치에게 질문하세요..."
+                            placeholderTextColor="#666"
+                            value={chatInput}
+                            onChangeText={setChatInput}
+                            editable={!llmCoach.isGenerating}
+                          />
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (!chatInput.trim() || llmCoach.isGenerating) return;
+                              llmCoach.sendMessage(chatInput.trim(), runCtx);
+                              setChatInput('');
+                            }}
+                            style={{ backgroundColor: colors.main, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Ionicons name="send" size={18} color="#000" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
             </View>
           </ScrollView>
 
