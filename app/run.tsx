@@ -109,6 +109,13 @@ export default function ActiveRunScreen() {
   const [manualDistanceStr, setManualDistanceStr] = useState('0.00');
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
+  // 러닝 시작 시 AI 코치 자동 활성화 (다운로드 포함)
+  useEffect(() => {
+    if (!isSelectingMode && llmCoach.status === 'idle') {
+      llmCoach.downloadAndLoad();
+    }
+  }, [isSelectingMode]);
+
   // Start the run in the global store
   useEffect(() => {
     if (!isSelectingMode) {
@@ -135,7 +142,7 @@ export default function ActiveRunScreen() {
         const routineToStart = source === 'builder' ? currentRoutine : [];
         const routineName = source === 'builder' ? currentRoutineName : '';
         
-        activeRunStore.start(coachConfig, i18n.language, translationsObject, indoorSubMode, routineToStart, routineName);
+        activeRunStore.start(coachConfig, i18n.language, translationsObject, indoorSubMode, routineToStart, routineName, coachConfig.persona);
       };
       startRun();
     }
@@ -543,6 +550,24 @@ export default function ActiveRunScreen() {
             </View>
           </View>
 
+          {/* LLM 코치 상태 표시 */}
+          {llmCoach.status !== 'idle' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 6 }}>
+              <Ionicons
+                name="hardware-chip-outline"
+                size={12}
+                color={llmCoach.status === 'ready' ? colors.main : llmCoach.status === 'error' ? '#f66' : '#AAA'}
+              />
+              <Text style={{ fontSize: 11, color: llmCoach.status === 'ready' ? colors.main : llmCoach.status === 'error' ? '#f66' : '#AAA' }}>
+                {llmCoach.status === 'downloading' ? `AI 코치 다운로드 ${Math.round(llmCoach.downloadProgress * 100)}%`
+                  : llmCoach.status === 'loading' ? 'AI 코치 로딩 중...'
+                  : llmCoach.status === 'ready' ? 'AI 코치 활성'
+                  : llmCoach.status === 'error' ? 'AI 코치 오류'
+                  : ''}
+              </Text>
+            </View>
+          )}
+
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Center Stats (Glassmorphism Overlay) */}
             <View style={styles.statsContainer}>
@@ -603,7 +628,7 @@ export default function ActiveRunScreen() {
             </View>
 
             {/* Real GPS Map or Video or Music Dashboard */}
-            <View style={[styles.mapContainer, { height: 400, borderColor: colors.sub }]}>
+            <View style={[styles.mapContainer, { height: mediaMode === 'music' ? 480 : 400, borderColor: colors.sub }]}>
               {mediaMode === 'map' && (
                 isIndoor ? (
                   <View style={styles.placeholderMap}>
@@ -1239,8 +1264,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   channelScroll: {
-    maxHeight: 80,
+    height: 70,
     marginTop: 10,
+    flexGrow: 0,
   },
   channelCard: {
     paddingHorizontal: 20,

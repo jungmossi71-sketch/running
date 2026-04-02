@@ -1,18 +1,7 @@
 import { LocationObject } from 'expo-location';
-import * as Speech from 'expo-speech';
-import { llmCoachService, RunContext } from './LlmCoachService';
+import { speakNeural } from './TtsService';
+import { llmCoachService, RunContext, CoachPersona } from './LlmCoachService';
 
-function getTTSLanguage(lang: string) {
-  switch(lang) {
-    case 'en': return 'en-US';
-    case 'zh': return 'zh-CN';
-    case 'ja': return 'ja-JP';
-    case 'es': return 'es-ES';
-    case 'hi': return 'hi-IN';
-    case 'ko':
-    default: return 'ko-KR';
-  }
-}
 
 // Helper for distance calculation (same as in run.tsx)
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -47,6 +36,7 @@ export interface RunState {
     speakTimeEvent: boolean;
   };
   language: string;
+  persona: CoachPersona;
   // Routine Builder Fields
   routine: any[];
   routineName: string;
@@ -77,6 +67,7 @@ class ActiveRunStore {
       speakTimeEvent: false,
     },
     language: 'ko',
+    persona: 'coach',
     routine: [],
     routineName: '',
     currentSegmentIndex: -1,
@@ -95,7 +86,7 @@ class ActiveRunStore {
     return this.state;
   }
 
-  start(config: any, language: string, translations: Record<string, string>, indoorMode: 'active' | 'passive' | null = null, routine: any[] = [], routineName: string = '') {
+  start(config: any, language: string, translations: Record<string, string>, indoorMode: 'active' | 'passive' | null = null, routine: any[] = [], routineName: string = '', persona: CoachPersona = 'coach') {
     this.translations = translations;
     this.state = {
       ...this.state,
@@ -106,6 +97,7 @@ class ActiveRunStore {
       distanceKm: 0,
       route: [],
       currentSpeed: 0,
+      persona,
       lastSpokenKm: 0,
       lastSpokenMin: 0,
       indoorMode,
@@ -125,27 +117,14 @@ class ActiveRunStore {
     setTimeout(() => this.speakInitialSummary(), 500);
   }
 
-  private async speakSafe(msg: string, lang: string) {
-    this.speechQueue = this.speechQueue.then(() => {
-      return new Promise<void>((resolve) => {
-        Speech.speak(msg, {
-          language: lang,
-          onDone: () => resolve(),
-          onError: (e) => {
-            console.log('Speech error:', e);
-            resolve();
-          },
-        });
-        // 10sec safety timeout to prevent deadlocks
-        setTimeout(resolve, 10000); 
-      });
-    });
+  private async speakSafe(msg: string, lang: string, persona?: CoachPersona) {
+    this.speechQueue = this.speechQueue.then(() => speakNeural(msg, lang, persona));
     return this.speechQueue;
   }
 
   private async speakInitialSummary() {
     const { config, language, routine, routineName } = this.state;
-    const ttsLang = getTTSLanguage(language);
+    const ttsLang = language;
 
     if (routine.length > 0) {
       // Routine guide
@@ -271,7 +250,7 @@ class ActiveRunStore {
                  .replace('{{s}}', paceS.toString())
                  .replace('{{feedback}}', feedback);
             
-        const ttsLang = getTTSLanguage(language);
+        const { persona } = this.state;
 
         // LLM 코칭이 로드된 경우 LLM 응답으로 대체
         if (llmCoachService.isLoaded()) {
@@ -286,11 +265,11 @@ class ActiveRunStore {
             targetDistanceKm: config.targetDistanceKm,
             language,
           };
-          llmCoachService.generateAutoCoaching(runCtx).then((llmMsg) => {
-            if (llmMsg) this.speakSafe(llmMsg, ttsLang);
+          llmCoachService.generateAutoCoaching(runCtx, persona).then((llmMsg) => {
+            if (llmMsg) this.speakSafe(llmMsg, language, persona);
           });
         } else {
-          this.speakSafe(msg, ttsLang);
+          this.speakSafe(msg, language);
         }
     }
 
@@ -303,7 +282,7 @@ class ActiveRunStore {
         msg = msg.replace('{{min}}', currentMin.toString())
                  .replace('{{km}}', distanceKm.toFixed(1));
                  
-        const ttsLang = getTTSLanguage(language);
+        const ttsLang = language;
         this.speakSafe(msg, ttsLang);
     }
   }
@@ -317,7 +296,7 @@ class ActiveRunStore {
     const segmentTimeElapsed = totalSeconds - this.state.segmentTimeStart;
     const segmentDistElapsed = distanceKm - this.state.segmentDistStart;
 
-    const ttsLang = getTTSLanguage(language);
+    const ttsLang = language;
 
     // 1. Pre-transition Alert (10s or 100m before end)
     if (lastSpokenAlertIndex !== currentSegmentIndex) {
@@ -378,12 +357,12 @@ class ActiveRunStore {
                  .replace('{{unit}}', unitName)
                  .replace('{{hint}}', hintMsg);
         
-        const ttsLang = getTTSLanguage(language);
+        const ttsLang = language;
         this.speakSafe(msg, ttsLang);
       } else {
         this.state.currentSegmentIndex = -1; // Finished all
         let msg = this.translations['builder_routine_finished'] || 'Program finished. Continuous running starts now.';
-        const ttsLang = getTTSLanguage(language);
+        const ttsLang = language;
         this.speakSafe(msg, ttsLang);
       }
     }

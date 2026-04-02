@@ -92,5 +92,11 @@
   "theme_electric": "エレクトリックブルー",
   "cyberpunk_purple": "サイバーパンク紫",
   "electric_blue": "エレクトリックブルー",
-  "marathon_elite_hud": "マラソンエリートHUD"
+  "marathon_elite_hud": "マラソンエリートHUD",
+  "coach_style": "コーチスタイル",
+  "style_coach": "プロコーチ",
+  "style_uncle": "近所のおじさん",
+  "style_student": "大学生",
+  "style_sister": "優しいお姉さん",
+  "style_drill": "鬼教官"
 }

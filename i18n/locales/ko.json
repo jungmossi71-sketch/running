@@ -116,5 +116,11 @@
   "theme_electric": "일렉트릭 블루",
   "cyberpunk_purple": "사이버펑크",
   "electric_blue": "일렉트릭 블루",
-  "marathon_elite_hud": "마라톤 엘리트 HUD"
+  "marathon_elite_hud": "마라톤 엘리트 HUD",
+  "coach_style": "코치 스타일",
+  "style_coach": "전문 코치",
+  "style_uncle": "동네 아저씨",
+  "style_student": "20대 대학생",
+  "style_sister": "친절한 언니",
+  "style_drill": "군기반장"
 }

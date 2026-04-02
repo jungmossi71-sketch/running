@@ -7,13 +7,16 @@ import { HistoryProvider } from '../context/HistoryContext';
 import { VoiceCoachProvider } from '../context/VoiceCoachContext';
 import { BuilderProvider } from '../context/BuilderContext';
 import { LlmCoachProvider } from '../context/LlmCoachContext';
+import { setTtsApiKey } from '../context/TtsService';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
-import * as Speech from 'expo-speech';
 import { activeRunStore } from '../context/ActiveRunStore';
+
+// Google Cloud TTS Neural2 API 키 설정 (Maps API와 동일 프로젝트)
+setTtsApiKey('AIzaSyCf_nWfV2z-LZW5XqGFGY2qXB6B9RgXVJ8');
 
 export const LOCATION_TASK_NAME = 'background-location-task';
 

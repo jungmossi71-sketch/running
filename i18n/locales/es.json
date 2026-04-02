@@ -92,5 +92,11 @@
   "theme_electric": "Azul Eléctrico",
   "cyberpunk_purple": "Ciberpunk Púrpura",
   "electric_blue": "Azul Eléctrico",
-  "marathon_elite_hud": "HUD Maratón Élite"
+  "marathon_elite_hud": "HUD Maratón Élite",
+  "coach_style": "Estilo de entrenador",
+  "style_coach": "Entrenador Pro",
+  "style_uncle": "Tío del barrio",
+  "style_student": "Universitario",
+  "style_sister": "Hermana amable",
+  "style_drill": "Sargento"
 }

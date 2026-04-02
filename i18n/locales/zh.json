@@ -92,5 +92,11 @@
   "theme_electric": "电子蓝",
   "cyberpunk_purple": "赛博朋克紫",
   "electric_blue": "电子蓝",
-  "marathon_elite_hud": "马拉松精英HUD"
+  "marathon_elite_hud": "马拉松精英HUD",
+  "coach_style": "教练风格",
+  "style_coach": "专业教练",
+  "style_uncle": "邻居大叔",
+  "style_student": "大学生",
+  "style_sister": "亲切姐姐",
+  "style_drill": "严格教官"
 }

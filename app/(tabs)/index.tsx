@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
 import { useThemeContext } from '../../context/ThemeContext';
 import { useHistoryContext } from '../../context/HistoryContext';
-import { useVoiceCoachContext } from '../../context/VoiceCoachContext';
+import { useVoiceCoachContext, PERSONA_PROFILES } from '../../context/VoiceCoachContext';
 import { Switch } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -27,6 +27,7 @@ export default function HomeScreen() {
   const { config: coachConfig, updateConfig: updateCoachConfig } = useVoiceCoachContext();
   const [coachModalVisible, setCoachModalVisible] = useState(false);
   const [tempCoach, setTempCoach] = useState(coachConfig);
+  const [styleOpen, setStyleOpen] = useState(false);
   
   const handleSaveCoach = async () => {
     await updateCoachConfig(tempCoach);
@@ -309,10 +310,38 @@ export default function HomeScreen() {
               <Switch value={tempCoach.speakDistanceEvent} onValueChange={(v) => setTempCoach({...tempCoach, speakDistanceEvent: v})} trackColor={{ true: colors.main }} />
             </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#333', marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#333', marginBottom: 16 }}>
               <Text style={{ color: '#CCC' }}>{t('speak_time_event')}</Text>
               <Switch value={tempCoach.speakTimeEvent} onValueChange={(v) => setTempCoach({...tempCoach, speakTimeEvent: v})} trackColor={{ true: colors.main }} />
             </View>
+
+            {/* 코치 스타일 드롭다운 */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#333', marginBottom: 4 }}>
+              <Text style={{ color: '#CCC' }}>{t('coach_style')}</Text>
+              <TouchableOpacity
+                onPress={() => setStyleOpen(v => !v)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: styleOpen ? colors.main : '#444' }}
+              >
+                <Text style={{ fontSize: 15 }}>{PERSONA_PROFILES.find(p => p.id === tempCoach.persona)?.emoji}</Text>
+                <Text style={{ color: '#FFF', fontSize: 13 }}>{t(PERSONA_PROFILES.find(p => p.id === tempCoach.persona)?.labelKey ?? '')}</Text>
+                <Ionicons name={styleOpen ? 'chevron-up' : 'chevron-down'} size={14} color="#AAA" />
+              </TouchableOpacity>
+            </View>
+            {styleOpen && (
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#333' }}>
+                {PERSONA_PROFILES.map((p, i) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => { setTempCoach({ ...tempCoach, persona: p.id }); setStyleOpen(false); }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 11, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: '#333', backgroundColor: tempCoach.persona === p.id ? `${colors.main}22` : 'transparent' }}
+                  >
+                    <Text style={{ fontSize: 18 }}>{p.emoji}</Text>
+                    <Text style={{ color: tempCoach.persona === p.id ? colors.main : '#DDD', fontSize: 14, fontWeight: tempCoach.persona === p.id ? 'bold' : 'normal', flex: 1 }}>{t(p.labelKey)}</Text>
+                    {tempCoach.persona === p.id && <Ionicons name="checkmark" size={16} color={colors.main} />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setCoachModalVisible(false)}>

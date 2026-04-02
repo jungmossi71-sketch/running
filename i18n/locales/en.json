@@ -116,5 +116,11 @@
   "theme_electric": "Electric Blue",
   "cyberpunk_purple": "Cyberpunk Purple",
   "electric_blue": "Electric Blue",
-  "marathon_elite_hud": "Marathon Elite HUD"
+  "marathon_elite_hud": "Marathon Elite HUD",
+  "coach_style": "Coach Style",
+  "style_coach": "Pro Coach",
+  "style_uncle": "Friendly Uncle",
+  "style_student": "College Student",
+  "style_sister": "Kind Sister",
+  "style_drill": "Drill Sergeant"
 }
