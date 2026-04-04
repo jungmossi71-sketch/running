@@ -105,7 +105,12 @@
     "segment_type_recovery": "Recovery",
     "segment_type_cooldown": "Cooldown",
     "unit_min": "minutes",
-    "unit_km": "kilometers"
+    "unit_km": "kilometers",
+    "sample_coach": "Great pace. Let's keep this up until the end!",
+    "sample_uncle": "Oh, you're running well! Nice day today, let's take it easy~",
+    "sample_student": "Wow, you're really fast! I won't lose either, let's go!",
+    "sample_sister": "Don't push too hard, focus on your breathing. You can do it!",
+    "sample_drill": "Fix your posture! Push past your limits!"
   },
   "theme_default": "Default",
   "theme_morning_forest": "Morning Forest",

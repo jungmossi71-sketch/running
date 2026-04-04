@@ -1,5 +1,5 @@
-import { initLlama, LlamaContext } from 'llama.rn';
 import * as FileSystem from 'expo-file-system/legacy';
+import { initLlama, LlamaContext } from 'llama.rn';
 
 // Qwen 2.5 0.5B Instruct Q4_K_M (~400MB)
 const MODEL_URL =
@@ -16,6 +16,7 @@ export interface RunContext {
   targetPaceSecPerKm: number;
   targetDistanceKm: number;
   language: string;
+  recentPaceTrend?: string;
 }
 
 export type CoachPersona = 'coach' | 'uncle' | 'student' | 'sister' | 'drill';
@@ -76,8 +77,9 @@ function buildUserPrompt(userMessage: string, ctx: RunContext): string {
   const elapsedMin = Math.floor(ctx.elapsedSeconds / 60);
   const elapsedSec = ctx.elapsedSeconds % 60;
   const speedKmh = (ctx.currentSpeedMs * 3.6).toFixed(1);
+  const trend = ctx.recentPaceTrend ? ` / trend ${ctx.recentPaceTrend}` : '';
 
-  const stats = `[Run stats: ${ctx.distanceKm.toFixed(2)}km / ${elapsedMin}m${elapsedSec}s elapsed / avg pace ${avgPaceMin}'${avgPaceSec}" / target ${targetPaceMin}'${targetPaceSec}" / speed ${speedKmh}km/h / goal ${ctx.targetDistanceKm}km]`;
+  const stats = `[Run stats: ${ctx.distanceKm.toFixed(2)}km / ${elapsedMin}m${elapsedSec}s elapsed / avg pace ${avgPaceMin}'${avgPaceSec}" / target ${targetPaceMin}'${targetPaceSec}" / speed ${speedKmh}km/h / goal ${ctx.targetDistanceKm}km${trend}]`;
 
   return `${stats}\n${userMessage}`;
 }
@@ -195,13 +197,39 @@ class LlmCoachService {
   }
 
   async generateAutoCoaching(runCtx: RunContext, persona: CoachPersona = 'coach'): Promise<string> {
+    const isSlow = runCtx.avgPaceSecPerKm > runCtx.targetPaceSecPerKm + 15;
+    const isFast = runCtx.avgPaceSecPerKm < runCtx.targetPaceSecPerKm - 15;
+
+    let paceConditionKo = '현재 완벽하게 목표 페이스를 유지하고 있습니다. 칭찬과 함께 현재 페이스를 계속 유지하도록 당부해 주세요.';
+    let paceConditionEn = 'I am maintaining the target pace perfectly. Praise me and tell me to keep it up.';
+    let paceConditionZh = '我很好地保持了目标配速。请表扬我并让我保持。';
+    let paceConditionJa = '目標ペースを完璧に維持しています。褒めて、このペースを維持するよう伝えてください。';
+    let paceConditionEs = 'Mantengo el ritmo objetivo perfectamente. Alábame y dime que siga así.';
+    let paceConditionHi = 'मैं लक्ष्य की गति सही से बनाए हुए हूँ। मेरी प्रशंसा करें।';
+
+    if (isSlow) {
+      paceConditionKo = '목표 페이스보다 점점 느려지고 있습니다. 호흡을 가다듬고 팔치기를 작게 하는 등 실용적인 팁과 함께 속도를 올리도록 격려해 주세요.';
+      paceConditionEn = 'I am falling behind the target pace. Give me practical tips like controlling breathing and encourage me to speed up.';
+      paceConditionZh = '我落后于目标配速。请提供实用的呼吸建议并鼓励我加速。';
+      paceConditionJa = '目標ペースより遅れています。呼吸を整えるなどのアドバイスをして、スピードを上げるよう励ましてください。';
+      paceConditionEs = 'Voy más lento que el objetivo. Dame consejos prácticos y anímame a acelerar.';
+      paceConditionHi = 'मैं लक्ष्य की गति से पीछे हूँ। मुझे सांस पर ध्यान देने और तेज करने के लिए प्रोत्साहित करें।';
+    } else if (isFast) {
+      paceConditionKo = '목표 페이스보다 너무 빠릅니다. 후반부 완주를 위해 오버페이스하지 않도록 체력 안배를 조언해 주세요.';
+      paceConditionEn = 'I am running much faster than the target pace. Advise me to control my pace to save energy for the latter half.';
+      paceConditionZh = '我跑得比目标配速快太多了。建议我控制配速以保存体力。';
+      paceConditionJa = '目標ペースより早すぎます。後半のためにオーバーペースにならないよう、体力温存をアドバイスしてください。';
+      paceConditionEs = 'Voy más rápido que el objetivo. Aconséjame controlar el ritmo para ahorrar energía.';
+      paceConditionHi = 'मैं बहुत तेज दौड़ रहा हूँ। आगे के लिए ऊर्जा बचाने की सलाह दें।';
+    }
+
     const prompts: Record<string, string> = {
-      ko: '지금 내 페이스와 상태를 보고 짧게 코칭해줘.',
-      en: 'Give me a quick coaching tip based on my current pace.',
-      zh: '根据我目前的配速给我一个简短的建议。',
-      ja: '今のペースを見て短くアドバイスをください。',
-      es: 'Dame un consejo rápido basado en mi ritmo actual.',
-      hi: 'मेरी वर्तमान गति के आधार पर एक त्वरित सुझाव दें।',
+      ko: `지금 내 페이스와 상태를 보고 페이스 메이커로서 코칭해줘. (상황: ${paceConditionKo})`,
+      en: `Act as a pacemaker and give me a coaching tip based on my stats. (Condition: ${paceConditionEn})`,
+      zh: `作为配速员根据我的数据提供建议。(情况: ${paceConditionZh})`,
+      ja: `ペースメーカーとして、私のデータに基づいてアドバイスをください。(状況: ${paceConditionJa})`,
+      es: `Actúa como marcapasos y dame un consejo basado en mis datos. (Condición: ${paceConditionEs})`,
+      hi: `पेसमेकर के रूप में मेरे डेटा के आधार पर सलाह दें। (स्थिति: ${paceConditionHi})`,
     };
     const msg = prompts[runCtx.language] ?? prompts['en'];
     return this.chat(msg, runCtx, persona);

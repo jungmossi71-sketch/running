@@ -105,7 +105,12 @@
     "segment_type_recovery": "리커버리",
     "segment_type_cooldown": "쿨다운",
     "unit_min": "분",
-    "unit_km": "킬로미터"
+    "unit_km": "킬로미터",
+    "sample_coach": "페이스가 좋습니다. 이대로 끝까지 가봅시다!",
+    "sample_uncle": "아이고 잘 뛰네! 오늘 날씨도 좋은데 천천히 가자고~",
+    "sample_student": "와, 진짜 빠르신데요? 저도 질 수 없죠, 파이팅!",
+    "sample_sister": "무리하지 말고 호흡에 집중해 봐요. 할 수 있어요!",
+    "sample_drill": "자세 똑바로 안 합니까! 한계에 도전하십시오!"
   },
   "theme_default": "기본",
   "theme_morning_forest": "아침의 숲",
